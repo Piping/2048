@@ -67,13 +67,14 @@ func apply_tile_overlay(index: int, value: int, panel: PanelContainer) -> void:
 	fx_sprite.self_modulate = Color.WHITE
 	fx_sprite.scale = Vector2.ONE
 	fx_sprite.position = Vector2.ZERO
+	fx_sprite.pivot_offset = Vector2.ZERO
 
 	if value < high_level_glow_threshold:
 		return
 
 	var fire_material := ShaderMaterial.new()
 	fire_material.shader = TILE_FIRE_SHADER
-	var fire_intensity := 0.16 if value < 256 else (0.32 if value < fire_level_threshold else 0.55)
+	var fire_intensity := 0.10 if value < 256 else (0.18 if value < fire_level_threshold else 0.32)
 	var fire_tier := 1.0 if value < 256 else (2.0 if value < fire_level_threshold else 3.0)
 	fire_material.set_shader_parameter("intensity", fire_intensity)
 	fire_material.set_shader_parameter("tier", fire_tier)
@@ -88,11 +89,19 @@ func apply_tile_overlay(index: int, value: int, panel: PanelContainer) -> void:
 	fx_layer.visible = true
 	fx_layer.color = Color.WHITE
 	fx_layer.material = fire_material
-	if value >= 256:
-		fx_sprite.visible = true
-		fx_sprite.self_modulate = Color(1, 1, 1, 0.72) if value < fire_level_threshold else Color(1, 1, 1, 0.92)
-		fx_sprite.size = panel.size * (Vector2(1.06, 0.72) if value < fire_level_threshold else Vector2(1.18, 0.92))
-		fx_sprite.position = Vector2(panel.size.x * -0.03, panel.size.y * 0.38) if value < fire_level_threshold else Vector2(panel.size.x * -0.09, panel.size.y * 0.18)
+	if value < 256:
+		return
+
+	fx_sprite.visible = true
+	fx_sprite.material = _additive_material()
+	if value < fire_level_threshold:
+		fx_sprite.self_modulate = Color(1, 1, 1, 0.38)
+		fx_sprite.size = Vector2(panel.size.x * 1.04, panel.size.y * 0.42)
+		fx_sprite.position = Vector2(panel.size.x * -0.02, panel.size.y * 0.60)
+	else:
+		fx_sprite.self_modulate = Color(1, 1, 1, 0.56)
+		fx_sprite.size = Vector2(panel.size.x * 1.16, panel.size.y * 0.62)
+		fx_sprite.position = Vector2(panel.size.x * -0.08, panel.size.y * 0.42)
 
 
 func advance(delta: float, board: Array[int]) -> void:
@@ -135,6 +144,7 @@ func play_celebration() -> void:
 
 	var viewport_size := get_viewport().get_visible_rect().size
 	celebration_particles.position = Vector2(viewport_size.x * 0.5, viewport_size.y * 0.32)
+	celebration_particles.color = Color(1.0, 0.78, 0.24, 1.0)
 	celebration_particles.visible = true
 	celebration_particles.restart()
 	celebration_particles.emitting = true
@@ -268,15 +278,13 @@ func _play_sequence(frames: Array[Texture2D], center: Vector2, size: Vector2, fp
 	var sprite := TextureRect.new()
 	sprite.texture = frames[0]
 	sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	sprite.stretch_mode = TextureRect.STRETCH_SCALE
+	sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	sprite.size = size
 	sprite.position = center - size * 0.5
 	sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	sprite.self_modulate = Color(1, 1, 1, alpha)
 	if additive:
-		var additive_material := CanvasItemMaterial.new()
-		additive_material.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-		sprite.material = additive_material
+		sprite.material = _additive_material()
 	animation_overlay.add_child(sprite)
 	_animate_sequence(sprite, frames, fps)
 
@@ -298,6 +306,12 @@ func _animate_sequence(target: TextureRect, frames: Array[Texture2D], fps: float
 func _queue_free_if_valid(node: Variant) -> void:
 	if is_instance_valid(node):
 		node.queue_free()
+
+
+func _additive_material() -> CanvasItemMaterial:
+	var material := CanvasItemMaterial.new()
+	material.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	return material
 
 
 func _set_shader_progress(progress: float, material: Variant) -> void:

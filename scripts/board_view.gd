@@ -29,6 +29,7 @@ func _rebuild_tiles() -> void:
 		tile.name = "Tile%d" % index
 		tile.custom_minimum_size = Vector2(120, 120)
 		tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tile.clip_contents = true
 
 		var fx_layer = ColorRect.new()
 		fx_layer.visible = false
@@ -47,13 +48,14 @@ func _rebuild_tiles() -> void:
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		label.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		label.z_index = 3
 		tile.add_child(label)
 
 		var fx_sprite = TextureRect.new()
 		fx_sprite.visible = false
 		fx_sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		fx_sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		fx_sprite.stretch_mode = TextureRect.STRETCH_SCALE
+		fx_sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		fx_sprite.z_index = 2
 		tile.add_child(fx_sprite)
 

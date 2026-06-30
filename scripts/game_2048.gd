@@ -5,7 +5,7 @@ const SELF_PLAY_AGENT_SCRIPT := preload("res://scripts/self_play_agent.gd")
 const GRID_SIZE := 4
 const CELL_COUNT := GRID_SIZE * GRID_SIZE
 const TARGET_VALUE := 2048
-const SELF_PLAY_STOP_VALUE := 512
+const SELF_PLAY_STOP_VALUE := 2048
 const SAVE_PATH := "user://save.cfg"
 const SWIPE_THRESHOLD := 72.0
 const MAX_UNDO_STEPS := 3
@@ -413,7 +413,7 @@ func _start_self_play() -> void:
 		return
 	self_play_running = true
 	_update_self_play_button()
-	_update_status("Self-play running. It will stop at 512.")
+	_update_status("Self-play running. It will stop at 2048.")
 	_schedule_self_play_step()
 
 
