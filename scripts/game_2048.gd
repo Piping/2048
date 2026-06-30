@@ -40,6 +40,7 @@ const DARK_TEXT_VALUES := {
 @onready var board_grid = $SafeArea/VBox/BoardFrame/BoardPadding/BoardCenter/BoardGrid
 @onready var undo_button: Button = $SafeArea/VBox/Controls/UndoButton
 @onready var new_game_button: Button = $SafeArea/VBox/Controls/NewGameButton
+@onready var self_play_button: Button = $SafeArea/VBox/Controls/SelfPlayButton
 @onready var safe_area: MarginContainer = $SafeArea
 @onready var flash_overlay: ColorRect = $FlashOverlay
 @onready var vfx_controller = $Effects
@@ -84,8 +85,8 @@ func _ready() -> void:
 	_load_best_score()
 	undo_button.pressed.connect(_on_undo_pressed)
 	new_game_button.pressed.connect(_on_new_game_pressed)
+	self_play_button.pressed.connect(_on_self_play_pressed)
 	new_game()
-	_start_self_play()
 
 
 func _input(event: InputEvent) -> void:
@@ -127,8 +128,11 @@ func new_game() -> void:
 	last_spawned_index = result["spawned_indices"][-1] if not result["spawned_indices"].is_empty() else -1
 	last_merged_indices.clear()
 	last_top_merge_value = 0
+	self_play_running = false
+	self_play_timer = null
 	_update_undo_button()
-	_update_status("Self-play running. It will stop at 512.")
+	_update_self_play_button()
+	_update_status("Ready. Use arrow keys, WASD, or swipe.")
 	_refresh_ui()
 
 
@@ -346,7 +350,13 @@ func _save_best_score() -> void:
 
 func _on_new_game_pressed() -> void:
 	new_game()
-	_start_self_play()
+
+
+func _on_self_play_pressed() -> void:
+	if self_play_running:
+		_stop_self_play("Self-play stopped.")
+	else:
+		_start_self_play()
 
 
 func _on_undo_pressed() -> void:
@@ -394,16 +404,23 @@ func _update_undo_button() -> void:
 	undo_button.text = "Undo (%d)" % undo_history.size()
 
 
+func _update_self_play_button() -> void:
+	self_play_button.text = "Stop Self-Play" if self_play_running else "Start Self-Play"
+
+
 func _start_self_play() -> void:
 	if not self_play_enabled or self_play_running:
 		return
 	self_play_running = true
+	_update_self_play_button()
+	_update_status("Self-play running. It will stop at 512.")
 	_schedule_self_play_step()
 
 
 func _stop_self_play(message: String = "") -> void:
 	self_play_running = false
 	self_play_timer = null
+	_update_self_play_button()
 	if message != "":
 		_update_status(message)
 

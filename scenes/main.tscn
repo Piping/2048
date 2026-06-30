@@ -143,6 +143,11 @@ custom_minimum_size = Vector2(160, 52)
 layout_mode = 2
 text = "New Game"
 
+[node name="SelfPlayButton" type="Button" parent="SafeArea/VBox/Controls"]
+custom_minimum_size = Vector2(156, 52)
+layout_mode = 2
+text = "Start Self-Play"
+
 [node name="Status" type="Label" parent="SafeArea/VBox/Controls"]
 layout_mode = 2
 size_flags_horizontal = 3
