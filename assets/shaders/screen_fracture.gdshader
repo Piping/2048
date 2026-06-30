@@ -31,7 +31,8 @@ void fragment() {
 	float radius = length(centered) * 2.0;
 	float radial = 1.0 - smoothstep(0.0, 1.15, radius);
 	float ring = smoothstep(0.08, 0.55, progress) * (1.0 - smoothstep(0.45, 1.1, radius + progress * 0.28));
-	float crack_mask = 1.0 - smoothstep(0.03, 0.08, crack(UV * 10.0 + TIME * 0.15));
+	vec2 fracture_uv = centered * 10.0 + center_uv * 10.0 + TIME * 0.15;
+	float crack_mask = 1.0 - smoothstep(0.03, 0.08, crack(fracture_uv));
 	float distortion = crack_mask * intensity * 0.03 * (1.0 - progress) + ring * 0.015 * intensity;
 	vec2 dir = normalize(centered + vec2(0.0001));
 	vec2 screen_uv = SCREEN_UV + dir * distortion;

@@ -310,7 +310,8 @@ func _play_screen_blast(value: int, center_uv: Vector2) -> void:
 	screen_fx.color = Color.WHITE
 	var material := ShaderMaterial.new()
 	material.shader = EXPLOSION_WAVE_SHADER
-	material.set_shader_parameter("center_uv", center_uv)
+	var clamped_center := center_uv.clamp(Vector2(0.08, 0.08), Vector2(0.92, 0.92))
+	material.set_shader_parameter("center_uv", clamped_center)
 	material.set_shader_parameter(
 		"core_color",
 		Color(1.0, 0.95, 0.65, 1.0) if value < fire_level_threshold else Color(1.0, 0.82, 0.28, 1.0)
@@ -353,7 +354,8 @@ func _play_screen_fracture(value: int, center_uv: Vector2) -> void:
 	var material := ShaderMaterial.new()
 	material.shader = SCREEN_FRACTURE_SHADER
 	material.set_shader_parameter("intensity", 1.22 if value < fire_level_threshold else 1.75)
-	material.set_shader_parameter("center_uv", center_uv)
+	var clamped_center := center_uv.clamp(Vector2(0.08, 0.08), Vector2(0.92, 0.92))
+	material.set_shader_parameter("center_uv", clamped_center)
 	material.set_shader_parameter(
 		"tint_color",
 		Color(1.0, 0.82, 0.36, 1.0) if value < fire_level_threshold else Color(1.0, 0.46, 0.12, 1.0)
