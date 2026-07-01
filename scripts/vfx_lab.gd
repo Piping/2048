@@ -320,15 +320,15 @@ func _build_gallery_card(effect: Dictionary, scale: float) -> Control:
 	var sprite := TextureRect.new()
 	sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		sprite.material = _additive_material()
-		sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var size := Vector2(96, 96) * scale
-		sprite.size = size
-		sprite.position = tile.size * 0.5 - size * 0.5
-		var frames := _load_atlas_frames_from_resource(effect, selected_row)
-		if not frames.is_empty():
-			sprite.texture = frames[0]
-		tile.add_child(sprite)
+	sprite.material = _additive_material()
+	sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var size := Vector2(96, 96) * scale
+	sprite.size = size
+	sprite.position = tile.size * 0.5 - size * 0.5
+	var frames := _load_atlas_frames_from_resource(effect, selected_row)
+	if not frames.is_empty():
+		sprite.texture = frames[0]
+	tile.add_child(sprite)
 	gallery_previews.append({"sprite": sprite, "frames": frames})
 
 	var id_label := Label.new()
@@ -349,12 +349,7 @@ func _collect_effects() -> void:
 			continue
 		var part_name := "Part %d" % part_number
 		var part_path := "%s/%s" % [PARTS_ROOT, part_dir]
-		var files := DirAccess.get_files_at(part_path)
-		files.sort()
-		for file_name in files:
-			if not file_name.ends_with(".png"):
-				continue
-			var full_path := "%s/%s" % [part_path, file_name]
+		for full_path in _list_png_resource_paths(part_path):
 			var source_texture := load(full_path) as Texture2D
 			if source_texture == null:
 				continue
@@ -367,7 +362,7 @@ func _collect_effects() -> void:
 			var cols := image.get_width() / ATLAS_CELL_SIZE
 			effects.append({
 				"part": part_name,
-				"label": file_name.get_basename(),
+				"label": full_path.get_file().get_basename(),
 				"desc": PART_NOTES.get(part_name, "Sprite atlas effect"),
 				"path": full_path,
 				"width": image.get_width(),
@@ -385,6 +380,26 @@ func _parse_part_number(part_dir: String) -> int:
 	if not part_dir.begins_with("part"):
 		return -1
 	return int(part_dir.trim_prefix("part"))
+
+
+func _list_png_resource_paths(directory: String) -> PackedStringArray:
+	var files := DirAccess.get_files_at(directory)
+	files.sort()
+	var paths := PackedStringArray()
+	var seen: Dictionary = {}
+	for file_name in files:
+		var png_name := ""
+		if file_name.ends_with(".png"):
+			png_name = file_name
+		elif file_name.ends_with(".png.import"):
+			png_name = file_name.trim_suffix(".import")
+		else:
+			continue
+		if seen.has(png_name):
+			continue
+		seen[png_name] = true
+		paths.append("%s/%s" % [directory, png_name])
+	return paths
 
 
 func _sync_part_picker(target_part: String) -> void:

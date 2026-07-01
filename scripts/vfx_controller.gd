@@ -5,10 +5,14 @@ const TILE_FIRE_SHADER := preload("res://assets/shaders/tile_fire.gdshader")
 const EXPLOSION_WAVE_SHADER := preload("res://assets/shaders/explosion_wave.gdshader")
 const SCREEN_FRACTURE_SHADER := preload("res://assets/shaders/screen_fracture.gdshader")
 const VFX_128_BURST_PATH := "res://assets/vfx_750/part1/16.png"
-const VFX_TILE_FIRE_DIR := "res://assets/vfx_750/part7"
-const VFX_TILE_INFERNO_DIR := "res://assets/vfx_750/part11"
 const VFX_IMPACT_DIR := "res://assets/vfx_pack/Effect_Impact_1"
 const VFX_EXPLOSION_DIR := "res://assets/vfx_pack/Effect_Explosion2_1"
+const HIGH_TIER_OVERLAY_PATHS := {
+	1024: "res://assets/vfx_750/part1/23.png",
+	2048: "res://assets/vfx_750/part1/24.png",
+	4096: "res://assets/vfx_750/part1/25.png",
+	8192: "res://assets/vfx_750/part1/26.png"
+}
 
 @onready var screen_fx: ColorRect = $ScreenFX
 @onready var screen_fx_secondary: ColorRect = $ScreenFXSecondary
@@ -25,8 +29,7 @@ var high_level_glow_threshold := 128
 var fire_level_threshold := 512
 var explosion_level_threshold := 64
 var tile_vfx_time := 0.0
-var tile_fire_frames: Array[Texture2D] = []
-var tile_inferno_frames: Array[Texture2D] = []
+var high_tier_overlay_frames: Dictionary = {}
 var tile_128_burst_frames: Array[Texture2D] = []
 var impact_frames: Array[Texture2D] = []
 var explosion_frames: Array[Texture2D] = []
@@ -34,12 +37,27 @@ var milestone_banner_active := false
 
 
 func _ready() -> void:
+	visible = true
+	# Runtime VFX are spawned under AnimationOverlay; keep it visible even if the
+	# scene file gets an accidental hidden flag.
+	animation_overlay.visible = true
 	# 750-Free tile VFX files are sprite atlases, not one-frame-per-file sequences.
 	tile_128_burst_frames = _load_atlas_frames_from_file(VFX_128_BURST_PATH, Vector2i(14, 9), 0)
-	tile_fire_frames = _load_atlas_frames(VFX_TILE_FIRE_DIR, Vector2i(4, 3), 0)
-	tile_inferno_frames = _load_atlas_frames(VFX_TILE_INFERNO_DIR, Vector2i(4, 3), 0)
+	for value in HIGH_TIER_OVERLAY_PATHS.keys():
+		high_tier_overlay_frames[value] = _load_atlas_frames_from_file(HIGH_TIER_OVERLAY_PATHS[value], Vector2i(14, 9), 0)
 	impact_frames = _load_sequence_frames(VFX_IMPACT_DIR)
 	explosion_frames = _load_sequence_frames(VFX_EXPLOSION_DIR)
+	print(
+		"[vfx_controller] burst=%d overlay1024=%d overlay2048=%d overlay4096=%d overlay8192=%d impact=%d explosion=%d" % [
+			tile_128_burst_frames.size(),
+			_overlay_frames_for_value(1024).size(),
+			_overlay_frames_for_value(2048).size(),
+			_overlay_frames_for_value(4096).size(),
+			_overlay_frames_for_value(8192).size(),
+			impact_frames.size(),
+			explosion_frames.size()
+		]
+	)
 
 
 func configure(
@@ -110,6 +128,7 @@ func apply_tile_overlay(index: int, value: int, panel: PanelContainer) -> void:
 	fx_layer.visible = true
 	fx_layer.color = Color.WHITE
 	fx_layer.material = fire_material
+	_sync_tile_fire_material(panel, fire_material)
 	# Keep the shader as the long-lived state and reserve sprite overlays for the
 	# very top tier only; the sprite reads poorly on 512-sized milestones.
 	if value < 1024:
@@ -117,19 +136,22 @@ func apply_tile_overlay(index: int, value: int, panel: PanelContainer) -> void:
 
 	fx_sprite.visible = true
 	fx_sprite.material = _additive_material()
-	fx_sprite.self_modulate = Color(1, 1, 1, 0.28)
-	fx_sprite.size = Vector2(panel.size.x * 1.08, panel.size.y * 0.46)
-	fx_sprite.position = Vector2(panel.size.x * -0.04, panel.size.y * 0.56)
+	fx_sprite.self_modulate = Color(1, 1, 1, 0.42)
+	_layout_tile_sprite(fx_sprite, panel)
 
 
 func advance(delta: float, board: Array[int]) -> void:
 	tile_vfx_time += delta
 	for index in board.size():
+		var panel: PanelContainer = board_view.panel_at(index)
+		var fx_layer: ColorRect = board_view.fx_layer_at(index)
+		if is_instance_valid(fx_layer) and fx_layer.visible:
+			_sync_tile_fire_material(panel, fx_layer.material as ShaderMaterial)
 		var sprite: TextureRect = board_view.fx_sprite_at(index)
 		if not is_instance_valid(sprite) or not sprite.visible:
 			continue
-		var value := board[index]
-		var frames := tile_fire_frames if value < fire_level_threshold else tile_inferno_frames
+		_layout_tile_sprite(sprite, panel)
+		var frames := _overlay_frames_for_value(board[index])
 		if frames.is_empty():
 			continue
 		var frame_index := int(floor(tile_vfx_time * 14.0)) % frames.size()
@@ -487,6 +509,56 @@ func _additive_material() -> CanvasItemMaterial:
 	var material := CanvasItemMaterial.new()
 	material.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	return material
+
+
+func _layout_tile_sprite(sprite: TextureRect, panel: PanelContainer) -> void:
+	var tile_size := panel.size
+	if tile_size.x <= 0.0 or tile_size.y <= 0.0:
+		return
+	sprite.size = tile_size * 1.08
+	sprite.position = tile_size * -0.04
+	sprite.pivot_offset = sprite.size * 0.5
+
+
+func _overlay_frames_for_value(value: int) -> Array[Texture2D]:
+	if value >= 8192:
+		return high_tier_overlay_frames.get(8192, [])
+	if value >= 4096:
+		return high_tier_overlay_frames.get(4096, [])
+	if value >= 2048:
+		return high_tier_overlay_frames.get(2048, [])
+	if value >= 1024:
+		return high_tier_overlay_frames.get(1024, [])
+	return []
+
+
+func _sync_tile_fire_material(panel: PanelContainer, material: ShaderMaterial) -> void:
+	if material == null:
+		return
+	var tile_size := panel.size
+	if tile_size.x <= 0.0 or tile_size.y <= 0.0:
+		return
+	var style := panel.get_theme_stylebox("panel") as StyleBoxFlat
+	var corner_radius := 18.0
+	var border_width := 0.0
+	if style != null:
+		corner_radius = max(
+			float(style.corner_radius_top_left),
+			max(
+				float(style.corner_radius_top_right),
+				max(float(style.corner_radius_bottom_right), float(style.corner_radius_bottom_left))
+			)
+		)
+		border_width = max(
+			float(style.border_width_left),
+			max(
+				float(style.border_width_top),
+				max(float(style.border_width_right), float(style.border_width_bottom))
+			)
+		)
+	material.set_shader_parameter("rect_size", tile_size)
+	material.set_shader_parameter("corner_radius_px", corner_radius)
+	material.set_shader_parameter("edge_inset_px", border_width)
 
 
 func _set_shader_progress(progress: float, material: Variant) -> void:

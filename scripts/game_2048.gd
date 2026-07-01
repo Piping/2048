@@ -5,7 +5,6 @@ const SELF_PLAY_AGENT_SCRIPT := preload("res://scripts/self_play_agent.gd")
 const GRID_SIZE := 4
 const CELL_COUNT := GRID_SIZE * GRID_SIZE
 const TARGET_VALUE := 2048
-const SELF_PLAY_STOP_VALUE := 2048
 const SAVE_PATH := "user://save.cfg"
 const SWIPE_THRESHOLD := 72.0
 const MAX_UNDO_STEPS := 3
@@ -295,10 +294,6 @@ func _try_move(direction: Vector2i) -> void:
 	last_merged_indices.clear()
 	last_move_animations.clear()
 
-	if result["max_tile"] >= SELF_PLAY_STOP_VALUE:
-		_stop_self_play("Self-play stopped after reaching %d." % SELF_PLAY_STOP_VALUE)
-		return
-
 	if result["max_tile"] >= TARGET_VALUE and not has_won:
 		has_won = true
 		vfx_controller.play_celebration()
@@ -324,24 +319,18 @@ func _refresh_ui() -> void:
 		style.corner_radius_bottom_right = 18
 		style.corner_radius_bottom_left = 18
 		if value >= FIRE_LEVEL_THRESHOLD:
-			style.shadow_color = Color(1.0, 0.36, 0.08, 0.85)
-			style.shadow_size = 28
 			style.border_width_left = 4
 			style.border_width_top = 4
 			style.border_width_right = 4
 			style.border_width_bottom = 4
 			style.border_color = Color(1.0, 0.84, 0.25, 0.98)
 		elif value >= 256:
-			style.shadow_color = Color(1.0, 0.52, 0.10, 0.72)
-			style.shadow_size = 18
 			style.border_width_left = 3
 			style.border_width_top = 3
 			style.border_width_right = 3
 			style.border_width_bottom = 3
 			style.border_color = Color(1.0, 0.90, 0.48, 0.90)
 		elif value >= HIGH_LEVEL_GLOW_THRESHOLD:
-			style.shadow_color = Color(1.0, 0.82, 0.22, 0.42)
-			style.shadow_size = 12
 			style.border_width_left = 2
 			style.border_width_top = 2
 			style.border_width_right = 2
@@ -707,9 +696,6 @@ func _schedule_self_play_step() -> void:
 
 func _run_self_play_step() -> void:
 	if not self_play_running:
-		return
-	if board_model.max_value(board) >= SELF_PLAY_STOP_VALUE:
-		_stop_self_play("Self-play stopped after reaching %d." % SELF_PLAY_STOP_VALUE)
 		return
 	if board_model.is_game_over(board):
 		_stop_self_play("Self-play stopped: no moves left.")

@@ -5,6 +5,9 @@ uniform float intensity : hint_range(0.0, 1.0) = 0.0;
 uniform float tier : hint_range(0.0, 3.0) = 1.0;
 uniform vec4 glow_color : source_color = vec4(1.0, 0.45, 0.08, 1.0);
 uniform vec4 core_color : source_color = vec4(1.0, 0.84, 0.24, 1.0);
+uniform vec2 rect_size = vec2(120.0, 120.0);
+uniform float corner_radius_px : hint_range(0.0, 96.0) = 18.0;
+uniform float edge_inset_px : hint_range(0.0, 16.0) = 0.0;
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
@@ -32,10 +35,26 @@ float fbm(vec2 p) {
 	return value;
 }
 
+float rounded_rect_sdf(vec2 uv) {
+	vec2 size = max(rect_size, vec2(1.0));
+	float radius = clamp(corner_radius_px, 0.0, min(size.x, size.y) * 0.5);
+	float inset = max(edge_inset_px, 0.0);
+	float inner_radius = clamp(radius - inset, 0.0, min(size.x, size.y) * 0.5);
+	vec2 p = uv * size - size * 0.5;
+	vec2 half_extents = max(size * 0.5 - vec2(inset + inner_radius), vec2(0.0));
+	vec2 q = abs(p) - half_extents;
+	return length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - inner_radius;
+}
+
+float rounded_rect_mask(float sdf) {
+	return 1.0 - smoothstep(0.0, 1.5, sdf);
+}
+
 void fragment() {
 	float active = step(0.01, intensity);
-	vec2 centered = UV * 2.0 - 1.0;
-	float edge = 1.0 - max(abs(centered.x), abs(centered.y));
+	float sdf = rounded_rect_sdf(UV);
+	float edge_span = max(min(rect_size.x, rect_size.y) * 0.5, 1.0);
+	float edge = clamp((-sdf) / edge_span, 0.0, 1.0);
 	float tier01 = clamp((tier - 1.0) / 2.0, 0.0, 1.0);
 	float edge_band = mix(0.10, 0.28, tier01);
 	float inner_mask = smoothstep(0.0, mix(0.08, 0.22, tier01), edge);
@@ -69,5 +88,6 @@ void fragment() {
 		mix(core_color.rgb, glow_color.rgb, 0.8) * inferno * 1.2 +
 		vec3(1.0, 0.88, 0.55) * ember_sparks +
 		glow_color.rgb * halo * (0.35 + tier * 0.15);
-	COLOR = vec4(color, alpha);
+	float corner_mask = rounded_rect_mask(sdf);
+	COLOR = vec4(color * corner_mask, alpha * corner_mask);
 }
