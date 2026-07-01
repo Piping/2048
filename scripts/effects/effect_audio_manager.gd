@@ -18,10 +18,7 @@ func play_generated(cue) -> void:
 	player.pitch_scale = cue.pitch_scale + _rng.randf_range(-cue.pitch_random_range, cue.pitch_random_range)
 	player.stream = _build_stream(cue)
 	add_child(player)
-	player.finished.connect(func() -> void:
-		if is_instance_valid(player):
-			player.queue_free()
-	)
+	player.finished.connect(player.queue_free)
 	player.play()
 
 

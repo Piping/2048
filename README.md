@@ -20,6 +20,16 @@ A Godot 4.7 implementation of the 2048 puzzle game with:
 '/Applications/Godot.app/Contents/MacOS/Godot' --path /Users/bytedance/code/godot-2048
 ```
 
+Run the VFX lab as a separate desktop tool window:
+
+```bash
+/Users/bytedance/code/godot-2048/run_vfx_lab.sh
+```
+
+This launches `res://scenes/vfx_lab.tscn` directly with a desktop-friendly
+window size instead of the main game's portrait-oriented default project
+resolution.
+
 Headless validation:
 
 ```bash

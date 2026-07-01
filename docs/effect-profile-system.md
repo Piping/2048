@@ -121,6 +121,15 @@ From there you can inspect and adjust each profile directly in the Inspector:
 This gives a minimal editor-native workflow without requiring a custom editor
 plugin.
 
+The project now also includes a scene-based cue example for `4096` merges:
+
+- `res://scenes/effects/merge_4096_effect.tscn`
+
+That scene is driven by `AnimationPlayer`, instantiated by `SceneEffectCue`,
+and attached by `EffectDirector` at runtime. Use it as the reference pattern
+when a tier needs editor-authored timeline choreography instead of pure numeric
+cue tuning.
+
 ## Current Mapping
 
 The shipped default profile set currently contains:
@@ -173,8 +182,9 @@ Those can be added incrementally without changing the event/profile contract.
 ## Recommended Next Extensions
 
 1. Add `AudioStreamEffectCue` for real imported SFX assets.
-2. Add `SceneEffectCue` so complex tier effects can be authored as `.tscn`
-   prefabs with `AnimationPlayer`.
+2. Expand `SceneEffectCue` usage beyond the current `4096` example so more
+   complex tier effects can be authored as `.tscn` prefabs with
+   `AnimationPlayer`.
 3. Add `ScreenShakeCue` and a small shake node.
 4. Move special-case `1024` and `2048+` composition deeper into profile-owned
    scenes once art direction stabilizes.

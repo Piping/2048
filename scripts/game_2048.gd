@@ -98,6 +98,22 @@ const DEBUG_PRESETS := {
 		"score": 10320,
 		"description": "1024 merge strike board loaded."
 	},
+	"merge_4096": {
+		"board": [
+			2048, 2048, 256, 0,
+			1024, 512, 128, 0,
+			64, 32, 16, 0,
+			8, 4, 2, 0
+		],
+		"play_board": [
+			4096, 256, 0, 0,
+			1024, 512, 128, 0,
+			64, 32, 16, 0,
+			8, 4, 2, 4
+		],
+		"score": 34880,
+		"description": "4096 merge scene-cue board loaded."
+	},
 	"combo_chain": {
 		"board": [
 			64, 64, 32, 32,
@@ -552,6 +568,21 @@ func _play_debug_preset(preset_id: String) -> void:
 				1,
 				1024,
 				false,
+				false
+			)
+		"merge_4096":
+			_apply_debug_board(preset, "play_board")
+			_play_debug_merge(
+				[
+					{"from": 0, "to": 0, "value": 2048, "merge": true},
+					{"from": 1, "to": 0, "value": 2048, "merge": true},
+					{"from": 2, "to": 1, "value": 256, "merge": false}
+				],
+				[0],
+				15,
+				2,
+				4096,
+				true,
 				false
 			)
 		"combo_chain":

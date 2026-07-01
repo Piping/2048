@@ -26,6 +26,11 @@ const PRESETS := [
 		"description": "1024 merge strike test. Use this to tune the reverse-play lightning hit on the destination tile."
 	},
 	{
+		"id": "merge_4096",
+		"label": "Merge 4096",
+		"description": "4096 merge test. This should exercise the SceneEffectCue path and play the AnimationPlayer-driven packed scene on the destination tile."
+	},
+	{
 		"id": "combo_chain",
 		"label": "Combo Chain",
 		"description": "Multiple merges in one beat to evaluate overlap, readability, and combo callouts."

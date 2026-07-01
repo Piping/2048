@@ -98,6 +98,20 @@ func reset_debug_state() -> void:
 		child.queue_free()
 
 
+func overlay_root() -> Control:
+	return animation_overlay
+
+
+func tile_visual_rect(tile_index: int) -> Rect2:
+	if tile_index < 0:
+		return Rect2(Vector2.ZERO, Vector2.ZERO)
+	var tile: PanelContainer = board_view.panel_at(tile_index)
+	return Rect2(
+		tile.global_position - animation_overlay.global_position,
+		tile.size
+	)
+
+
 func apply_tile_overlay(index: int, value: int, panel: PanelContainer) -> void:
 	var fx_layer: ColorRect = board_view.fx_layer_at(index)
 	var fx_sprite: TextureRect = board_view.fx_sprite_at(index)
@@ -206,9 +220,7 @@ func play_celebration(intensity_boost: float = 1.0) -> void:
 	flash_tween.set_trans(Tween.TRANS_SINE)
 	flash_tween.tween_property(flash_overlay, "color", Color(1, 0.68, 0.2, min(0.92, 0.7 * intensity_boost)), 0.12)
 	flash_tween.tween_property(flash_overlay, "color", Color(1, 0.2, 0.05, 0.0), 0.4 + max(0.0, intensity_boost - 1.0) * 0.12)
-	flash_tween.finished.connect(func() -> void:
-		flash_overlay.visible = false
-	)
+	flash_tween.finished.connect(_hide_flash_overlay)
 
 	var viewport_size := get_viewport().get_visible_rect().size
 	celebration_particles.position = Vector2(viewport_size.x * 0.5, viewport_size.y * 0.32)
@@ -482,10 +494,7 @@ func _play_banner_flyby(text: String, banner_color: Color) -> void:
 	tween.tween_property(plane, "position:y", plane.position.y + 24.0, 0.92)
 	tween.tween_property(plane, "rotation", deg_to_rad(-3.0), 0.25)
 	tween.tween_property(plane, "rotation", deg_to_rad(2.0), 0.35).set_delay(0.25)
-	tween.finished.connect(func() -> void:
-		milestone_banner_active = false
-		_queue_free_if_valid(plane)
-	)
+	tween.finished.connect(_finish_banner_flyby.bind(plane))
 
 
 func effect_frames_for_value(value: int) -> Array[Texture2D]:
@@ -514,7 +523,7 @@ func _play_tile_atlas_once(
 	tile_index: int,
 	fps: float,
 	scale_multiplier: Vector2,
-	offset: Vector2,
+	frame_offset: Vector2,
 	alpha: float,
 	reverse: bool = false
 ) -> void:
@@ -522,7 +531,7 @@ func _play_tile_atlas_once(
 		return
 	var tile: PanelContainer = board_view.panel_at(tile_index)
 	var size := tile.size * scale_multiplier
-	var center := tile.global_position - animation_overlay.global_position + tile.size * 0.5 + offset
+	var center := tile.global_position - animation_overlay.global_position + tile.size * 0.5 + frame_offset
 	_play_sequence(frames, center, size, fps, true, alpha, reverse)
 
 
@@ -543,6 +552,34 @@ func _animate_sequence(target: TextureRect, frames: Array[Texture2D], fps: float
 func _queue_free_if_valid(node: Variant) -> void:
 	if is_instance_valid(node):
 		node.queue_free()
+
+
+func _hide_flash_overlay() -> void:
+	flash_overlay.visible = false
+
+
+func _finish_banner_flyby(plane: Variant) -> void:
+	milestone_banner_active = false
+	_queue_free_if_valid(plane)
+
+
+func _finish_screen_blast(material: Variant) -> void:
+	screen_fx.visible = false
+	if screen_fx.material == material:
+		screen_fx.material = null
+	screen_fx_secondary.visible = false
+	if screen_fx_secondary.material == material:
+		screen_fx_secondary.material = null
+
+
+func _finish_screen_fracture(material: Variant) -> void:
+	screen_fx_secondary.visible = false
+	if screen_fx_secondary.material == material:
+		screen_fx_secondary.material = null
+
+
+func _hide_impact_flash() -> void:
+	impact_flash.visible = false
 
 
 func _additive_material() -> CanvasItemMaterial:
@@ -639,12 +676,7 @@ func _play_screen_blast(value: int, center_uv: Vector2, intensity_boost: float =
 		Color(1.0, 0.12, 0.04, 0.0),
 		1.38
 	)
-	tween.finished.connect(func() -> void:
-		screen_fx.visible = false
-		screen_fx.material = null
-		screen_fx_secondary.visible = false
-		screen_fx_secondary.material = null
-	)
+	tween.finished.connect(_finish_screen_blast.bind(material))
 
 
 func _play_screen_fracture(value: int, center_uv: Vector2, intensity_boost: float = 1.0) -> void:
@@ -662,10 +694,7 @@ func _play_screen_fracture(value: int, center_uv: Vector2, intensity_boost: floa
 	screen_fx_secondary.material = material
 	var tween: Tween = create_tween()
 	tween.tween_method(_set_shader_progress.bind(material), 0.0, 1.0, 1.5)
-	tween.finished.connect(func() -> void:
-		screen_fx_secondary.visible = false
-		screen_fx_secondary.material = null
-	)
+	tween.finished.connect(_finish_screen_fracture.bind(material))
 
 
 func _play_impact_flash(value: int, intensity_boost: float = 1.0) -> void:
@@ -681,9 +710,7 @@ func _play_impact_flash(value: int, intensity_boost: float = 1.0) -> void:
 		0.04
 	)
 	tween.tween_property(impact_flash, "color", Color(1.0, 0.2, 0.06, 0.0), 0.18)
-	tween.finished.connect(func() -> void:
-		impact_flash.visible = false
-	)
+	tween.finished.connect(_hide_impact_flash)
 
 
 func _scaled_peak(base_peak: Vector2, scale_boost: float) -> Vector2:
@@ -717,8 +744,8 @@ func _load_atlas_frames_from_file(path: String, grid: Vector2i, row: int) -> Arr
 	var image := source_texture.get_image()
 	if image == null:
 		return []
-	var cell_width := image.get_width() / grid.x
-	var cell_height := image.get_height() / grid.y
+	var cell_width := int(image.get_width() / grid.x)
+	var cell_height := int(image.get_height() / grid.y)
 	if cell_width <= 0 or cell_height <= 0:
 		return []
 	var textures: Array[Texture2D] = []
@@ -742,8 +769,8 @@ func _load_atlas_frames(directory: String, grid: Vector2i, row: int) -> Array[Te
 		var image := source_texture.get_image()
 		if image == null:
 			continue
-		var cell_width := image.get_width() / grid.x
-		var cell_height := image.get_height() / grid.y
+		var cell_width := int(image.get_width() / grid.x)
+		var cell_height := int(image.get_height() / grid.y)
 		if cell_width <= 0 or cell_height <= 0:
 			continue
 		for column in grid.x:

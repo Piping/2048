@@ -1,9 +1,11 @@
-[gd_resource type="Resource" script_class="EffectProfileSet" load_steps=23 format=3]
+[gd_resource type="Resource" script_class="EffectProfileSet" load_steps=25 format=3]
 
 [ext_resource type="Script" path="res://scripts/effects/effect_profile_set.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/effects/effect_profile.gd" id="2"]
 [ext_resource type="Script" path="res://scripts/effects/vfx_effect_cue.gd" id="3"]
 [ext_resource type="Script" path="res://scripts/effects/audio_effect_cue.gd" id="4"]
+[ext_resource type="Script" path="res://scripts/effects/scene_effect_cue.gd" id="5"]
+[ext_resource type="PackedScene" path="res://scenes/effects/merge_4096_effect.tscn" id="6"]
 
 [sub_resource type="Resource" id="1"]
 script = ExtResource("3")
@@ -169,6 +171,22 @@ intensity_rank = 5
 debug_label = "merge_2048_plus"
 cues = [SubResource("16"), SubResource("17")]
 
+[sub_resource type="Resource" id="28"]
+script = ExtResource("5")
+packed_scene = ExtResource("6")
+attach_to = "overlay"
+
+[sub_resource type="Resource" id="29"]
+script = ExtResource("2")
+id = &"merge_4096_scene"
+event_name = &"merge_move"
+min_tile_value = 4096
+max_tile_value = 4096
+priority = 60
+intensity_rank = 6
+debug_label = "merge_4096_scene"
+cues = [SubResource("16"), SubResource("17"), SubResource("28")]
+
 [sub_resource type="Resource" id="19"]
 script = ExtResource("3")
 action = "screen_merge_feedback"
@@ -248,4 +266,4 @@ cues = [SubResource("25"), SubResource("26")]
 
 [resource]
 script = ExtResource("1")
-profiles = [SubResource("3"), SubResource("6"), SubResource("9"), SubResource("12"), SubResource("15"), SubResource("18"), SubResource("21"), SubResource("24"), SubResource("27")]
+profiles = [SubResource("3"), SubResource("6"), SubResource("9"), SubResource("12"), SubResource("15"), SubResource("18"), SubResource("29"), SubResource("21"), SubResource("24"), SubResource("27")]

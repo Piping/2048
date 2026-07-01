@@ -2,6 +2,7 @@ extends Control
 
 const PARTS_ROOT := "res://assets/vfx_750"
 const ATLAS_CELL_SIZE := 64
+const LAB_MIN_WINDOW_SIZE := Vector2i(1360, 760)
 
 const PART_NOTES := {
 	"Part 1": "Ring-like magic pulse atlas",
@@ -49,9 +50,12 @@ var time_accumulator := 0.0
 var atlas_frames: Array[Texture2D] = []
 var gallery_mode := true
 var gallery_previews: Array[Dictionary] = []
+var _window_size_enforced := false
 
 
 func _ready() -> void:
+	_apply_min_window_size()
+	_apply_min_window_size_deferred.call_deferred()
 	_collect_effects()
 	_populate_parts()
 	_populate_effects()
@@ -77,6 +81,41 @@ func _ready() -> void:
 	_on_scale_changed(scale_slider.value)
 	_load_selected_effect()
 	_refresh_mode()
+
+
+func _apply_min_window_size() -> void:
+	custom_minimum_size = Vector2(LAB_MIN_WINDOW_SIZE)
+	if OS.has_feature("web"):
+		return
+	var window := get_window()
+	if window == null:
+		return
+	window.min_size = LAB_MIN_WINDOW_SIZE
+	var target_size := window.size
+	target_size.x = max(target_size.x, LAB_MIN_WINDOW_SIZE.x)
+	target_size.y = max(target_size.y, LAB_MIN_WINDOW_SIZE.y)
+	if target_size != window.size:
+		window.size = target_size
+
+
+func _apply_min_window_size_deferred() -> void:
+	await get_tree().process_frame
+	_apply_min_window_size()
+	_window_size_enforced = true
+
+
+func _notification(what: int) -> void:
+	if what != NOTIFICATION_WM_SIZE_CHANGED:
+		return
+	if not _window_size_enforced:
+		return
+	if OS.has_feature("web"):
+		return
+	var window := get_window()
+	if window == null:
+		return
+	if window.size.x < LAB_MIN_WINDOW_SIZE.x or window.size.y < LAB_MIN_WINDOW_SIZE.y:
+		_apply_min_window_size()
 
 
 func _process(delta: float) -> void:
