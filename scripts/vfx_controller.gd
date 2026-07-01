@@ -8,6 +8,7 @@ const VFX_128_BURST_PATH := "res://assets/vfx_750/part1/16.png"
 const VFX_1024_STRIKE_PATH := "res://assets/vfx_750/part11/528.png"
 const VFX_IMPACT_DIR := "res://assets/vfx_pack/Effect_Impact_1"
 const VFX_EXPLOSION_DIR := "res://assets/vfx_pack/Effect_Explosion2_1"
+const SCORE_FIRE_DIR := "res://assets/vfx_pack/Effect_FastPixelFire_1"
 const HIGH_TIER_OVERLAY_PATHS := {
 	2048: "res://assets/vfx_750/part1/24.png",
 	4096: "res://assets/vfx_750/part1/25.png",
@@ -34,8 +35,15 @@ var tile_128_burst_frames: Array[Texture2D] = []
 var tile_1024_strike_frames: Array[Texture2D] = []
 var impact_frames: Array[Texture2D] = []
 var explosion_frames: Array[Texture2D] = []
+var score_fire_frames: Array[Texture2D] = []
 var milestone_banner_active := false
 var theme_config
+var score_card_panel: PanelContainer
+var score_fire_clip: Control
+var score_fire_sprite: TextureRect
+var score_fire_time := 0.0
+var score_fire_intensity := 0.0
+var score_fire_visible := false
 
 
 func _ready() -> void:
@@ -50,15 +58,17 @@ func _ready() -> void:
 		high_tier_overlay_frames[value] = _load_atlas_frames_from_file(HIGH_TIER_OVERLAY_PATHS[value], Vector2i(14, 9), 0)
 	impact_frames = _load_sequence_frames(VFX_IMPACT_DIR)
 	explosion_frames = _load_sequence_frames(VFX_EXPLOSION_DIR)
+	score_fire_frames = _load_sequence_frames(SCORE_FIRE_DIR)
 	print(
-		"[vfx_controller] burst=%d strike1024=%d overlay2048=%d overlay4096=%d overlay8192=%d impact=%d explosion=%d" % [
+		"[vfx_controller] burst=%d strike1024=%d overlay2048=%d overlay4096=%d overlay8192=%d impact=%d explosion=%d scorefire=%d" % [
 			tile_128_burst_frames.size(),
 			tile_1024_strike_frames.size(),
 			_overlay_frames_for_value(2048).size(),
 			_overlay_frames_for_value(4096).size(),
 			_overlay_frames_for_value(8192).size(),
 			impact_frames.size(),
-			explosion_frames.size()
+			explosion_frames.size(),
+			score_fire_frames.size()
 		]
 	)
 
@@ -102,12 +112,35 @@ func reset_debug_state() -> void:
 	impact_flash.color = Color(1, 1, 1, 0)
 	celebration_particles.visible = false
 	celebration_particles.emitting = false
+	score_fire_time = 0.0
 	for child in animation_overlay.get_children():
 		child.queue_free()
+	if is_instance_valid(score_fire_clip):
+		score_fire_clip.visible = false
 
 
 func overlay_root() -> Control:
 	return animation_overlay
+
+
+func bind_score_card(panel: PanelContainer) -> void:
+	score_card_panel = panel
+	_ensure_score_fire_overlay()
+
+
+func update_score_fire(score_value: int) -> void:
+	score_fire_intensity = _score_fire_strength(score_value)
+	_ensure_score_fire_overlay()
+	if not is_instance_valid(score_fire_clip) or not is_instance_valid(score_fire_sprite):
+		return
+	score_fire_visible = score_fire_intensity > 0.0 and not score_fire_frames.is_empty()
+	score_fire_clip.visible = score_fire_visible
+	if not score_fire_visible:
+		return
+	_layout_score_fire_overlay()
+	var alpha := lerpf(0.18, 0.44, score_fire_intensity)
+	score_fire_sprite.self_modulate = Color(1, 1, 1, alpha)
+	score_fire_sprite.scale = Vector2(1.04 + score_fire_intensity * 0.10, 1.02 + score_fire_intensity * 0.52)
 
 
 func tile_visual_rect(tile_index: int) -> Rect2:
@@ -166,6 +199,7 @@ func apply_tile_overlay(index: int, value: int, panel: PanelContainer) -> void:
 
 func advance(delta: float, board: Array[int]) -> void:
 	tile_vfx_time += delta
+	advance_score_fire(delta)
 	for index in board.size():
 		var panel: PanelContainer = board_view.panel_at(index)
 		var fx_layer: ColorRect = board_view.fx_layer_at(index)
@@ -180,6 +214,20 @@ func advance(delta: float, board: Array[int]) -> void:
 			continue
 		var frame_index := int(floor(tile_vfx_time * 14.0)) % frames.size()
 		sprite.texture = frames[frame_index]
+
+
+func advance_score_fire(delta: float) -> void:
+	if not score_fire_visible:
+		return
+	if not is_instance_valid(score_fire_clip) or not is_instance_valid(score_fire_sprite):
+		return
+	if score_fire_frames.is_empty():
+		return
+	score_fire_time += delta
+	_layout_score_fire_overlay()
+	var fps := lerpf(11.0, 22.0, score_fire_intensity)
+	var frame_index := int(floor(score_fire_time * fps)) % score_fire_frames.size()
+	score_fire_sprite.texture = score_fire_frames[frame_index]
 
 
 func play_spawn_feedback(spawned_index: int, scale_boost: float = 1.0, intensity_boost: float = 1.0) -> void:
@@ -605,6 +653,60 @@ func _layout_tile_sprite(sprite: TextureRect, panel: PanelContainer) -> void:
 	sprite.size = tile_size * 1.08
 	sprite.position = tile_size * -0.04
 	sprite.pivot_offset = sprite.size * 0.5
+
+
+func _ensure_score_fire_overlay() -> void:
+	if not is_instance_valid(score_card_panel):
+		return
+	if is_instance_valid(score_fire_clip) and score_fire_clip.get_parent() == score_card_panel:
+		return
+	if is_instance_valid(score_fire_clip):
+		score_fire_clip.queue_free()
+	score_fire_clip = Control.new()
+	score_fire_clip.name = "ScoreFireClip"
+	score_fire_clip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	score_fire_clip.clip_contents = true
+	score_fire_clip.z_index = 0
+	score_fire_clip.set_anchors_preset(Control.PRESET_FULL_RECT)
+	score_fire_clip.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	score_fire_clip.grow_vertical = Control.GROW_DIRECTION_BOTH
+	score_card_panel.add_child(score_fire_clip)
+	score_card_panel.move_child(score_fire_clip, 0)
+
+	score_fire_sprite = TextureRect.new()
+	score_fire_sprite.name = "ScoreFireSprite"
+	score_fire_sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	score_fire_sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	score_fire_sprite.stretch_mode = TextureRect.STRETCH_SCALE
+	score_fire_sprite.material = _additive_material()
+	score_fire_sprite.self_modulate = Color(1, 1, 1, 0.0)
+	score_fire_sprite.position = Vector2.ZERO
+	score_fire_sprite.z_index = 0
+	score_fire_clip.add_child(score_fire_sprite)
+	_layout_score_fire_overlay()
+	score_fire_clip.visible = false
+
+
+func _layout_score_fire_overlay() -> void:
+	if not is_instance_valid(score_card_panel) or not is_instance_valid(score_fire_clip) or not is_instance_valid(score_fire_sprite):
+		return
+	var panel_size := score_card_panel.size
+	if panel_size.x <= 0.0 or panel_size.y <= 0.0:
+		return
+	var bleed := 12.0 + score_fire_intensity * 22.0
+	var flame_height := panel_size.y * (0.84 + score_fire_intensity * 0.34)
+	score_fire_sprite.size = Vector2(panel_size.x + bleed * 2.0, flame_height)
+	# The fire frames are visually strongest around the upper-middle of the
+	# texture, so sink most of the sprite below the card and only reveal the
+	# rising tongues above the bottom edge.
+	score_fire_sprite.position = Vector2(-bleed, panel_size.y - flame_height * (0.40 + score_fire_intensity * 0.06))
+	score_fire_sprite.pivot_offset = Vector2(score_fire_sprite.size.x * 0.5, score_fire_sprite.size.y)
+
+
+func _score_fire_strength(score_value: int) -> float:
+	if score_value < 1000:
+		return 0.0
+	return clampf((float(score_value) - 1000.0) / 7000.0, 0.0, 1.0)
 
 
 func _overlay_frames_for_value(value: int) -> Array[Texture2D]:

@@ -191,6 +191,7 @@ func _ready() -> void:
 		EXPLOSION_LEVEL_THRESHOLD
 	)
 	vfx_controller.apply_theme(current_theme)
+	vfx_controller.bind_score_card($SafeArea/VBox/Header/ScoreCard as PanelContainer)
 	effect_director.configure(vfx_controller)
 	_populate_theme_picker()
 	_apply_theme()
@@ -346,6 +347,7 @@ func _try_move(direction: Vector2i) -> void:
 func _refresh_ui() -> void:
 	score_label.text = str(score)
 	best_label.text = str(best_score)
+	vfx_controller.update_score_fire(score)
 
 	for i in CELL_COUNT:
 		var value := board[i]
