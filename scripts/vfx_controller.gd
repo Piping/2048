@@ -589,12 +589,8 @@ func _screen_uv_for_tile(tile_index: int) -> Vector2:
 
 func _load_sequence_frames(directory: String) -> Array[Texture2D]:
 	var textures: Array[Texture2D] = []
-	var files := DirAccess.get_files_at(directory)
-	files.sort()
-	for file_name in files:
-		if not file_name.ends_with(".png"):
-			continue
-		var texture := load("%s/%s" % [directory, file_name]) as Texture2D
+	for path in _list_png_resource_paths(directory):
+		var texture := load(path) as Texture2D
 		if texture != null:
 			textures.append(texture)
 	return textures
@@ -625,12 +621,8 @@ func _load_atlas_frames_from_file(path: String, grid: Vector2i, row: int) -> Arr
 
 func _load_atlas_frames(directory: String, grid: Vector2i, row: int) -> Array[Texture2D]:
 	var textures: Array[Texture2D] = []
-	var files := DirAccess.get_files_at(directory)
-	files.sort()
-	for file_name in files:
-		if not file_name.ends_with(".png"):
-			continue
-		var source_texture := load("%s/%s" % [directory, file_name]) as Texture2D
+	for path in _list_png_resource_paths(directory):
+		var source_texture := load(path) as Texture2D
 		if source_texture == null:
 			continue
 		var image := source_texture.get_image()
@@ -649,3 +641,23 @@ func _load_atlas_frames(directory: String, grid: Vector2i, row: int) -> Array[Te
 			)
 			textures.append(ImageTexture.create_from_image(frame))
 	return textures
+
+
+func _list_png_resource_paths(directory: String) -> PackedStringArray:
+	var files := DirAccess.get_files_at(directory)
+	files.sort()
+	var paths := PackedStringArray()
+	var seen: Dictionary = {}
+	for file_name in files:
+		var png_name := ""
+		if file_name.ends_with(".png"):
+			png_name = file_name
+		elif file_name.ends_with(".png.import"):
+			png_name = file_name.trim_suffix(".import")
+		else:
+			continue
+		if seen.has(png_name):
+			continue
+		seen[png_name] = true
+		paths.append("%s/%s" % [directory, png_name])
+	return paths

@@ -1,6 +1,6 @@
 extends Control
 
-const PARTS_ROOT := "/Users/bytedance/Downloads/750-Free"
+const PARTS_ROOT := "res://assets/vfx_750"
 const ATLAS_CELL_SIZE := 64
 
 const PART_NOTES := {
@@ -147,7 +147,7 @@ func _populate_modes() -> void:
 
 func _load_selected_effect() -> void:
 	var effect := _current_effect()
-	atlas_frames = _load_atlas_frames_from_disk(effect, selected_row)
+	atlas_frames = _load_atlas_frames_from_resource(effect, selected_row)
 	time_accumulator = 0.0
 	preview_sprite.texture = atlas_frames[0] if not atlas_frames.is_empty() else null
 	desc_label.text = effect["desc"]
@@ -238,9 +238,12 @@ func _on_scale_changed(value: float) -> void:
 		_refresh_gallery()
 
 
-func _load_atlas_frames_from_disk(effect: Dictionary, row: int) -> Array[Texture2D]:
-	var image := Image.new()
-	if image.load(effect["path"]) != OK:
+func _load_atlas_frames_from_resource(effect: Dictionary, row: int) -> Array[Texture2D]:
+	var source_texture := load(str(effect["path"])) as Texture2D
+	if source_texture == null:
+		return []
+	var image := source_texture.get_image()
+	if image == null:
 		return []
 
 	var cell_width := int(effect["cell_width"])
@@ -317,15 +320,15 @@ func _build_gallery_card(effect: Dictionary, scale: float) -> Control:
 	var sprite := TextureRect.new()
 	sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	sprite.material = _additive_material()
-	sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var size := Vector2(96, 96) * scale
-	sprite.size = size
-	sprite.position = tile.size * 0.5 - size * 0.5
-	var frames := _load_atlas_frames_from_disk(effect, selected_row)
-	if not frames.is_empty():
-		sprite.texture = frames[0]
-	tile.add_child(sprite)
+		sprite.material = _additive_material()
+		sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var size := Vector2(96, 96) * scale
+		sprite.size = size
+		sprite.position = tile.size * 0.5 - size * 0.5
+		var frames := _load_atlas_frames_from_resource(effect, selected_row)
+		if not frames.is_empty():
+			sprite.texture = frames[0]
+		tile.add_child(sprite)
 	gallery_previews.append({"sprite": sprite, "frames": frames})
 
 	var id_label := Label.new()
@@ -340,18 +343,23 @@ func _collect_effects() -> void:
 	effects.clear()
 	var part_dirs := DirAccess.get_directories_at(PARTS_ROOT)
 	part_dirs.sort()
-	for part_name in part_dirs:
-		if not part_name.begins_with("Part "):
+	for part_dir in part_dirs:
+		var part_number := _parse_part_number(part_dir)
+		if part_number < 0:
 			continue
-		var part_path := "%s/%s" % [PARTS_ROOT, part_name]
+		var part_name := "Part %d" % part_number
+		var part_path := "%s/%s" % [PARTS_ROOT, part_dir]
 		var files := DirAccess.get_files_at(part_path)
 		files.sort()
 		for file_name in files:
 			if not file_name.ends_with(".png"):
 				continue
-			var image := Image.new()
 			var full_path := "%s/%s" % [part_path, file_name]
-			if image.load(full_path) != OK:
+			var source_texture := load(full_path) as Texture2D
+			if source_texture == null:
+				continue
+			var image := source_texture.get_image()
+			if image == null:
 				continue
 			if image.get_width() % ATLAS_CELL_SIZE != 0 or image.get_height() % ATLAS_CELL_SIZE != 0:
 				continue
@@ -370,7 +378,13 @@ func _collect_effects() -> void:
 				"cell_height": ATLAS_CELL_SIZE
 			})
 	if effects.is_empty():
-		push_error("No VFX atlas PNGs found under %s" % PARTS_ROOT)
+		push_error("No VFX atlas PNGs found under repo path %s" % PARTS_ROOT)
+
+
+func _parse_part_number(part_dir: String) -> int:
+	if not part_dir.begins_with("part"):
+		return -1
+	return int(part_dir.trim_prefix("part"))
 
 
 func _sync_part_picker(target_part: String) -> void:
