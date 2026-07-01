@@ -73,6 +73,10 @@ layout_mode = 2
 button_pressed = true
 text = "Loop"
 
+[node name="ReverseToggle" type="CheckButton" parent="SafeArea/Layout/Sidebar/Playback" unique_id=1863550412]
+layout_mode = 2
+text = "Reverse"
+
 [node name="FpsLabel" type="Label" parent="SafeArea/Layout/Sidebar" unique_id=1571746997]
 layout_mode = 2
 text = "Playback"

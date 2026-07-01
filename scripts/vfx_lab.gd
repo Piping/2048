@@ -26,6 +26,7 @@ const PART_NOTES := {
 @onready var row_picker: OptionButton = $SafeArea/Layout/Sidebar/RowPicker
 @onready var play_button: Button = $SafeArea/Layout/Sidebar/Playback/PlayButton
 @onready var loop_toggle: CheckButton = $SafeArea/Layout/Sidebar/Playback/LoopToggle
+@onready var reverse_toggle: CheckButton = $SafeArea/Layout/Sidebar/Playback/ReverseToggle
 @onready var fps_slider: HSlider = $SafeArea/Layout/Sidebar/FpsSlider
 @onready var fps_value: Label = $SafeArea/Layout/Sidebar/FpsValue
 @onready var scale_slider: HSlider = $SafeArea/Layout/Sidebar/ScaleSlider
@@ -62,6 +63,8 @@ func _ready() -> void:
 	mode_picker.item_selected.connect(_on_mode_selected)
 	play_button.pressed.connect(_on_play_pressed)
 	loop_toggle.button_pressed = true
+	loop_toggle.toggled.connect(_on_playback_direction_changed)
+	reverse_toggle.toggled.connect(_on_playback_direction_changed)
 	fps_slider.value_changed.connect(_on_fps_changed)
 	scale_slider.value_changed.connect(_on_scale_changed)
 	preview_tile.clip_contents = true
@@ -80,12 +83,7 @@ func _process(delta: float) -> void:
 	var fps: float = maxf(1.0, float(fps_slider.value))
 	time_accumulator += delta
 	if not atlas_frames.is_empty():
-		var frame_count: int = atlas_frames.size()
-		var frame := int(floor(time_accumulator * fps))
-		if loop_toggle.button_pressed:
-			frame %= frame_count
-		else:
-			frame = min(frame, frame_count - 1)
+		var frame := _frame_index_for_time(atlas_frames.size(), fps)
 		if playing:
 			preview_sprite.texture = atlas_frames[frame]
 	if gallery_mode:
@@ -149,7 +147,10 @@ func _load_selected_effect() -> void:
 	var effect := _current_effect()
 	atlas_frames = _load_atlas_frames_from_resource(effect, selected_row)
 	time_accumulator = 0.0
-	preview_sprite.texture = atlas_frames[0] if not atlas_frames.is_empty() else null
+	if atlas_frames.is_empty():
+		preview_sprite.texture = null
+	else:
+		preview_sprite.texture = atlas_frames[_frame_index_for_time(atlas_frames.size(), maxf(1.0, float(fps_slider.value)))]
 	desc_label.text = effect["desc"]
 	stage_label.text = "%s  %s" % [effect["part"], effect["label"]]
 	atlas_info.text = "%dx%d  rows %d  cols %d  row %d  frames %d" % [
@@ -225,6 +226,7 @@ func _on_play_pressed() -> void:
 
 func _on_fps_changed(value: float) -> void:
 	fps_value.text = "%d fps" % int(round(value))
+	_refresh_preview_frame()
 	if gallery_mode:
 		_refresh_gallery()
 
@@ -236,6 +238,12 @@ func _on_scale_changed(value: float) -> void:
 	preview_sprite.position = preview_tile.size * 0.5 - size * 0.5
 	if gallery_mode:
 		_refresh_gallery()
+
+
+func _on_playback_direction_changed(_pressed: bool) -> void:
+	_refresh_preview_frame()
+	if gallery_mode:
+		_update_gallery_animation()
 
 
 func _load_atlas_frames_from_resource(effect: Dictionary, row: int) -> Array[Texture2D]:
@@ -275,6 +283,7 @@ func _refresh_mode() -> void:
 		_refresh_gallery()
 	else:
 		stage_label.text = "%s  %s" % [_current_effect()["part"], _current_effect()["label"]]
+	_refresh_preview_frame()
 
 
 func _refresh_gallery() -> void:
@@ -417,11 +426,27 @@ func _update_gallery_animation() -> void:
 		var frames: Array = preview["frames"]
 		if frames.is_empty():
 			continue
-		var frame_count: int = frames.size()
-		var frame := int(floor(time_accumulator * fps))
-		if loop_toggle.button_pressed:
-			frame %= frame_count
-		else:
-			frame = min(frame, frame_count - 1)
+		var frame := _frame_index_for_time(frames.size(), fps)
 		var sprite: TextureRect = preview["sprite"]
 		sprite.texture = frames[frame]
+
+
+func _refresh_preview_frame() -> void:
+	if atlas_frames.is_empty():
+		preview_sprite.texture = null
+		return
+	var fps: float = maxf(1.0, float(fps_slider.value))
+	preview_sprite.texture = atlas_frames[_frame_index_for_time(atlas_frames.size(), fps)]
+
+
+func _frame_index_for_time(frame_count: int, fps: float) -> int:
+	if frame_count <= 0:
+		return 0
+	var frame := int(floor(time_accumulator * fps))
+	if loop_toggle.button_pressed:
+		frame = posmod(frame, frame_count)
+	else:
+		frame = min(frame, frame_count - 1)
+	if reverse_toggle.button_pressed:
+		return frame_count - 1 - frame
+	return frame

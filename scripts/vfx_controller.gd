@@ -400,7 +400,7 @@ func _play_banner_flyby(text: String, banner_color: Color) -> void:
 	animation_overlay.add_child(plane)
 
 	var banner := PanelContainer.new()
-	banner.size = Vector2(246, 46)
+	banner.size = Vector2(460, 96)
 	banner.position = Vector2(92, 20)
 	var banner_style := StyleBoxFlat.new()
 	banner_style.bg_color = banner_color
@@ -439,7 +439,7 @@ func _play_banner_flyby(text: String, banner_color: Color) -> void:
 	tween.set_parallel(true)
 	tween.set_trans(Tween.TRANS_SINE)
 	tween.set_ease(Tween.EASE_IN_OUT)
-	tween.tween_property(plane, "position:x", viewport_size.x + 80.0, 1.85)
+	tween.tween_property(plane, "position:x", viewport_size.x + 80.0, 4)
 	tween.tween_property(plane, "position:y", plane.position.y + 24.0, 0.92)
 	tween.tween_property(plane, "rotation", deg_to_rad(-3.0), 0.25)
 	tween.tween_property(plane, "rotation", deg_to_rad(2.0), 0.35).set_delay(0.25)
