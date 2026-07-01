@@ -231,6 +231,9 @@ func new_game() -> void:
 
 
 func _apply_display_safe_area() -> void:
+	if OS.has_feature("macos") or OS.has_feature("windows") or OS.has_feature("linuxbsd") or OS.has_feature("web"):
+		return
+
 	var base_left := int(safe_area.get_theme_constant("margin_left"))
 	var base_top := int(safe_area.get_theme_constant("margin_top"))
 	var base_right := int(safe_area.get_theme_constant("margin_right"))

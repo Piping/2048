@@ -594,16 +594,18 @@ func _load_sequence_frames(directory: String) -> Array[Texture2D]:
 	for file_name in files:
 		if not file_name.ends_with(".png"):
 			continue
-		var image := Image.new()
-		var image_path := ProjectSettings.globalize_path("%s/%s" % [directory, file_name])
-		if image.load(image_path) == OK:
-			textures.append(ImageTexture.create_from_image(image))
+		var texture := load("%s/%s" % [directory, file_name]) as Texture2D
+		if texture != null:
+			textures.append(texture)
 	return textures
 
 
 func _load_atlas_frames_from_file(path: String, grid: Vector2i, row: int) -> Array[Texture2D]:
-	var image := Image.new()
-	if image.load(ProjectSettings.globalize_path(path)) != OK:
+	var source_texture := load(path) as Texture2D
+	if source_texture == null:
+		return []
+	var image := source_texture.get_image()
+	if image == null:
 		return []
 	var cell_width := image.get_width() / grid.x
 	var cell_height := image.get_height() / grid.y
@@ -628,9 +630,11 @@ func _load_atlas_frames(directory: String, grid: Vector2i, row: int) -> Array[Te
 	for file_name in files:
 		if not file_name.ends_with(".png"):
 			continue
-		var image := Image.new()
-		var image_path := ProjectSettings.globalize_path("%s/%s" % [directory, file_name])
-		if image.load(image_path) != OK:
+		var source_texture := load("%s/%s" % [directory, file_name]) as Texture2D
+		if source_texture == null:
+			continue
+		var image := source_texture.get_image()
+		if image == null:
 			continue
 		var cell_width := image.get_width() / grid.x
 		var cell_height := image.get_height() / grid.y
@@ -645,4 +649,3 @@ func _load_atlas_frames(directory: String, grid: Vector2i, row: int) -> Array[Te
 			)
 			textures.append(ImageTexture.create_from_image(frame))
 	return textures
-
