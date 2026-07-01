@@ -34,6 +34,89 @@ const DARK_TEXT_VALUES := {
 	4: true
 }
 
+const DEBUG_PRESETS := {
+	"spawn_pulse": {
+		"board": [
+			0, 0, 0, 0,
+			0, 2, 4, 0,
+			0, 8, 16, 0,
+			0, 0, 0, 0
+		],
+		"play_board": [
+			0, 0, 0, 0,
+			0, 2, 4, 0,
+			0, 8, 16, 0,
+			0, 0, 0, 2
+		],
+		"score": 48,
+		"description": "Spawn pulse board loaded."
+	},
+	"merge_128": {
+		"board": [
+			64, 64, 8, 0,
+			16, 32, 8, 0,
+			0, 4, 2, 0,
+			0, 0, 0, 0
+		],
+		"play_board": [
+			128, 8, 0, 0,
+			16, 32, 8, 0,
+			4, 2, 0, 0,
+			0, 0, 0, 2
+		],
+		"score": 840,
+		"description": "128 merge board loaded."
+	},
+	"merge_512": {
+		"board": [
+			256, 256, 32, 0,
+			128, 64, 16, 0,
+			0, 8, 4, 0,
+			0, 0, 0, 0
+		],
+		"play_board": [
+			512, 32, 0, 0,
+			128, 64, 16, 0,
+			8, 4, 0, 0,
+			0, 0, 0, 2
+		],
+		"score": 6240,
+		"description": "512 merge board loaded."
+	},
+	"combo_chain": {
+		"board": [
+			64, 64, 32, 32,
+			16, 16, 8, 8,
+			4, 4, 2, 2,
+			0, 0, 0, 0
+		],
+		"play_board": [
+			128, 64, 0, 0,
+			32, 16, 0, 0,
+			8, 4, 0, 0,
+			0, 0, 0, 2
+		],
+		"score": 4120,
+		"description": "Combo-chain board loaded."
+	},
+	"celebration_2048": {
+		"board": [
+			1024, 1024, 64, 0,
+			512, 256, 128, 0,
+			64, 32, 16, 0,
+			8, 4, 2, 0
+		],
+		"play_board": [
+			2048, 64, 0, 0,
+			512, 256, 128, 0,
+			64, 32, 16, 0,
+			8, 4, 2, 4
+		],
+		"score": 18240,
+		"description": "2048 celebration board loaded."
+	}
+}
+
 @onready var score_label: Label = $SafeArea/VBox/Header/ScoreCard/ScoreBox/Value
 @onready var best_label: Label = $SafeArea/VBox/Header/BestCard/BestBox/Value
 @onready var status_label: Label = $SafeArea/VBox/Controls/Status
@@ -44,6 +127,7 @@ const DARK_TEXT_VALUES := {
 @onready var safe_area: MarginContainer = $SafeArea
 @onready var flash_overlay: ColorRect = $FlashOverlay
 @onready var vfx_controller = $Effects
+@onready var debug_panel = $DebugPanel
 
 var board_model
 var board_view
@@ -60,6 +144,8 @@ var last_spawned_index := -1
 var last_merged_indices: Array[int] = []
 var last_move_animations: Array[Dictionary] = []
 var last_top_merge_value := 0
+var combo_count := 0
+var highest_announced_tile := 0
 var self_play_enabled := true
 var self_play_running := false
 var self_play_timer: SceneTreeTimer = null
@@ -86,6 +172,9 @@ func _ready() -> void:
 	undo_button.pressed.connect(_on_undo_pressed)
 	new_game_button.pressed.connect(_on_new_game_pressed)
 	self_play_button.pressed.connect(_on_self_play_pressed)
+	debug_panel.preset_load_requested.connect(_on_debug_preset_load_requested)
+	debug_panel.preset_play_requested.connect(_on_debug_preset_play_requested)
+	debug_panel.reset_requested.connect(_on_debug_reset_requested)
 	new_game()
 
 
@@ -128,12 +217,17 @@ func new_game() -> void:
 	last_spawned_index = result["spawned_indices"][-1] if not result["spawned_indices"].is_empty() else -1
 	last_merged_indices.clear()
 	last_top_merge_value = 0
+	combo_count = 0
+	highest_announced_tile = board_model.max_value(board)
 	self_play_running = false
 	self_play_timer = null
+	vfx_controller.reset_debug_state()
 	_update_undo_button()
 	_update_self_play_button()
 	_update_status("Ready. Use arrow keys, WASD, or swipe.")
+	_sync_debug_feedback("Live game reset.")
 	_refresh_ui()
+	vfx_controller.play_move_feedback(board, [], last_spawned_index, [], combo_count)
 
 
 func _apply_display_safe_area() -> void:
@@ -176,13 +270,27 @@ func _try_move(direction: Vector2i) -> void:
 	last_top_merge_value = 0
 	for tile_index in last_merged_indices:
 		last_top_merge_value = max(last_top_merge_value, board[tile_index])
+	var merged_indices_for_feedback: Array[int] = last_merged_indices.duplicate()
+	var move_animations_for_feedback: Array[Dictionary] = last_move_animations.duplicate()
+	combo_count = combo_count + 1 if result["score_gain"] > 0 else 0
 	last_spawned_index = board_model.spawn_random_tile(rng)
 	board = board_model.get_board()
 	_update_undo_button()
 	_refresh_ui()
+	vfx_controller.play_move_feedback(board, move_animations_for_feedback, last_spawned_index, merged_indices_for_feedback, combo_count)
 
-	if last_top_merge_value >= 128:
-		vfx_controller.play_screen_merge_feedback(last_top_merge_value, vfx_controller.highest_merge_tile(board, last_merged_indices))
+	if _should_play_screen_merge_feedback(last_top_merge_value):
+		vfx_controller.play_screen_merge_feedback(last_top_merge_value, vfx_controller.highest_merge_tile(board, merged_indices_for_feedback))
+
+	var current_max: int = board_model.max_value(board)
+	if current_max > highest_announced_tile and _should_play_milestone_feedback(current_max):
+		highest_announced_tile = current_max
+		vfx_controller.play_milestone_feedback(current_max)
+	elif current_max > highest_announced_tile:
+		highest_announced_tile = current_max
+
+	last_merged_indices.clear()
+	last_move_animations.clear()
 
 	if result["max_tile"] >= SELF_PLAY_STOP_VALUE:
 		_stop_self_play("Self-play stopped after reaching %d." % SELF_PLAY_STOP_VALUE)
@@ -245,10 +353,6 @@ func _refresh_ui() -> void:
 		panel.scale = Vector2.ONE
 		panel.pivot_offset = panel.size * 0.5
 		vfx_controller.apply_tile_overlay(i, value, panel)
-
-	vfx_controller.play_refresh_feedback(board, last_move_animations, last_spawned_index, last_merged_indices)
-	last_merged_indices.clear()
-	last_move_animations.clear()
 
 
 func _apply_theme() -> void:
@@ -330,6 +434,172 @@ func _handle_swipe(delta: Vector2) -> void:
 		_try_move(Vector2i.RIGHT if delta.x > 0.0 else Vector2i.LEFT)
 	else:
 		_try_move(Vector2i.DOWN if delta.y > 0.0 else Vector2i.UP)
+
+
+func _on_debug_preset_load_requested(preset_id: String) -> void:
+	_load_debug_preset(preset_id, false)
+
+
+func _on_debug_preset_play_requested(preset_id: String) -> void:
+	_load_debug_preset(preset_id, true)
+
+
+func _on_debug_reset_requested() -> void:
+	new_game()
+
+
+func _load_debug_preset(preset_id: String, play_effect: bool) -> void:
+	if not DEBUG_PRESETS.has(preset_id):
+		_sync_debug_feedback("Unknown preset: %s" % preset_id)
+		return
+
+	var preset: Dictionary = DEBUG_PRESETS[preset_id]
+	_apply_debug_board(preset, "board")
+	_sync_debug_feedback(preset["description"])
+	if play_effect:
+		_play_debug_preset(preset_id)
+
+
+func _apply_debug_board(preset: Dictionary, board_key: String = "board") -> void:
+	_stop_self_play("Self-play paused for VFX debug.")
+	vfx_controller.reset_debug_state()
+	board = _typed_int_array(preset.get(board_key, preset["board"]))
+	board_model.set_board(board)
+	score = int(preset.get("score", 0))
+	has_won = false
+	undo_history.clear()
+	last_spawned_index = -1
+	last_merged_indices.clear()
+	last_move_animations.clear()
+	last_top_merge_value = 0
+	combo_count = 0
+	highest_announced_tile = board_model.max_value(board)
+	_update_undo_button()
+	_refresh_ui()
+	_update_status(str(preset.get("description", "Debug preset loaded.")))
+
+
+func _play_debug_preset(preset_id: String) -> void:
+	vfx_controller.reset_debug_state()
+	var preset: Dictionary = DEBUG_PRESETS[preset_id]
+	match preset_id:
+		"spawn_pulse":
+			_apply_debug_board(preset, "play_board")
+			last_spawned_index = 15
+			vfx_controller.play_move_feedback(board, [], last_spawned_index, [], 0)
+		"merge_128":
+			_apply_debug_board(preset, "play_board")
+			_play_debug_merge(
+				[
+					{"from": 0, "to": 0, "value": 64, "merge": true},
+					{"from": 1, "to": 0, "value": 64, "merge": true},
+					{"from": 2, "to": 1, "value": 8, "merge": false}
+				],
+				[0],
+				15,
+				1,
+				128,
+				false,
+				false
+			)
+		"merge_512":
+			_apply_debug_board(preset, "play_board")
+			_play_debug_merge(
+				[
+					{"from": 0, "to": 0, "value": 256, "merge": true},
+					{"from": 1, "to": 0, "value": 256, "merge": true},
+					{"from": 2, "to": 1, "value": 32, "merge": false}
+				],
+				[0],
+				15,
+				1,
+				512,
+				true,
+				false
+			)
+		"combo_chain":
+			_apply_debug_board(preset, "play_board")
+			_play_debug_merge(
+				[
+					{"from": 0, "to": 0, "value": 64, "merge": true},
+					{"from": 1, "to": 0, "value": 64, "merge": true},
+					{"from": 2, "to": 1, "value": 32, "merge": true},
+					{"from": 3, "to": 1, "value": 32, "merge": true},
+					{"from": 4, "to": 4, "value": 16, "merge": true},
+					{"from": 5, "to": 4, "value": 16, "merge": true},
+					{"from": 6, "to": 5, "value": 8, "merge": true},
+					{"from": 7, "to": 5, "value": 8, "merge": true},
+					{"from": 8, "to": 8, "value": 4, "merge": true},
+					{"from": 9, "to": 8, "value": 4, "merge": true},
+					{"from": 10, "to": 9, "value": 2, "merge": true},
+					{"from": 11, "to": 9, "value": 2, "merge": true}
+				],
+				[0, 1, 4, 5, 8, 9],
+				15,
+				3,
+				128,
+				false,
+				false
+			)
+		"celebration_2048":
+			_apply_debug_board(preset, "play_board")
+			_play_debug_merge(
+				[
+					{"from": 0, "to": 0, "value": 1024, "merge": true},
+					{"from": 1, "to": 0, "value": 1024, "merge": true},
+					{"from": 2, "to": 1, "value": 64, "merge": false}
+				],
+				[0],
+				15,
+				2,
+				2048,
+				true,
+				true
+			)
+		_:
+			_sync_debug_feedback("No playback recipe for preset: %s" % preset_id)
+			return
+	_sync_debug_feedback("Played preset: %s" % preset_id)
+
+
+func _play_debug_merge(
+	move_animations: Array[Dictionary],
+	merged_indices: Array[int],
+	spawned_index: int,
+	debug_combo_count: int,
+	top_merge_value: int,
+	play_milestone: bool,
+	play_celebration_fx: bool
+) -> void:
+	vfx_controller.play_move_feedback(board, move_animations, spawned_index, merged_indices, debug_combo_count)
+	if _should_play_screen_merge_feedback(top_merge_value):
+		vfx_controller.play_screen_merge_feedback(top_merge_value, vfx_controller.highest_merge_tile(board, merged_indices))
+	if play_milestone and _should_play_milestone_feedback(top_merge_value):
+		vfx_controller.play_milestone_feedback(top_merge_value)
+	if play_celebration_fx:
+		vfx_controller.play_celebration()
+
+
+func _should_play_screen_merge_feedback(value: int) -> bool:
+	return value >= 1024
+
+
+func _should_play_milestone_feedback(value: int) -> bool:
+	return value >= 1024
+
+
+func _typed_int_array(values: Variant) -> Array[int]:
+	var typed: Array[int] = []
+	if not (values is Array):
+		return typed
+	for value in values:
+		typed.append(int(value))
+	return typed
+
+
+func _sync_debug_feedback(message: String) -> void:
+	if is_instance_valid(debug_panel):
+		debug_panel.set_feedback(message)
 
 
 func _update_status(message: String) -> void:

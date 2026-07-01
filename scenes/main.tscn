@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/game_2048.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/board_view.gd" id="2"]
 [ext_resource type="Script" path="res://scripts/vfx_controller.gd" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/vfx_debug_panel.tscn" id="4"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -224,3 +225,5 @@ initial_velocity_max = 420.0
 scale_amount_min = 3.0
 scale_amount_max = 8.0
 color = Color(1, 0.545098, 0.180392, 1)
+
+[node name="DebugPanel" parent="." instance=ExtResource("4")]

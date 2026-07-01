@@ -1,0 +1,170 @@
+[gd_scene format=3 uid="uid://dnvoo6mphsh2s"]
+
+[ext_resource type="Script" uid="uid://du2e05hd6d3o1" path="res://scripts/vfx_lab.gd" id="1"]
+
+[node name="VfxLab" type="Control" unique_id=1285023041]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="." unique_id=1005250522]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0823529, 0.0901961, 0.117647, 1)
+
+[node name="SafeArea" type="MarginContainer" parent="." unique_id=851440964]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 28
+
+[node name="Layout" type="HBoxContainer" parent="SafeArea" unique_id=145827671]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 24
+
+[node name="Sidebar" type="VBoxContainer" parent="SafeArea/Layout" unique_id=278659457]
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="SafeArea/Layout/Sidebar" unique_id=1044663668]
+layout_mode = 2
+text = "VFX Lab"
+
+[node name="PartPicker" type="OptionButton" parent="SafeArea/Layout/Sidebar" unique_id=267345562]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+
+[node name="EffectPicker" type="OptionButton" parent="SafeArea/Layout/Sidebar" unique_id=584712541]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+
+[node name="RowPicker" type="OptionButton" parent="SafeArea/Layout/Sidebar" unique_id=41180870]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+
+[node name="Playback" type="HBoxContainer" parent="SafeArea/Layout/Sidebar" unique_id=2077496067]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PlayButton" type="Button" parent="SafeArea/Layout/Sidebar/Playback" unique_id=390284296]
+custom_minimum_size = Vector2(120, 42)
+layout_mode = 2
+text = "Pause"
+
+[node name="LoopToggle" type="CheckButton" parent="SafeArea/Layout/Sidebar/Playback" unique_id=1216644663]
+layout_mode = 2
+button_pressed = true
+text = "Loop"
+
+[node name="FpsLabel" type="Label" parent="SafeArea/Layout/Sidebar" unique_id=1571746997]
+layout_mode = 2
+text = "Playback"
+
+[node name="FpsSlider" type="HSlider" parent="SafeArea/Layout/Sidebar" unique_id=1340899457]
+layout_mode = 2
+min_value = 4.0
+max_value = 24.0
+value = 12.0
+
+[node name="FpsValue" type="Label" parent="SafeArea/Layout/Sidebar" unique_id=1764067390]
+layout_mode = 2
+text = "12 fps"
+
+[node name="ScaleLabel" type="Label" parent="SafeArea/Layout/Sidebar" unique_id=1696254497]
+layout_mode = 2
+text = "Scale"
+
+[node name="ScaleSlider" type="HSlider" parent="SafeArea/Layout/Sidebar" unique_id=1132184605]
+layout_mode = 2
+min_value = 0.4
+max_value = 2.0
+step = 0.05
+value = 1.0
+
+[node name="ScaleValue" type="Label" parent="SafeArea/Layout/Sidebar" unique_id=554376378]
+layout_mode = 2
+text = "1.00x"
+
+[node name="Description" type="Label" parent="SafeArea/Layout/Sidebar" unique_id=2037533733]
+custom_minimum_size = Vector2(0, 100)
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="AtlasInfo" type="Label" parent="SafeArea/Layout/Sidebar" unique_id=2055084003]
+layout_mode = 2
+
+[node name="Stage" type="VBoxContainer" parent="SafeArea/Layout" unique_id=650342543]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="StageHeader" type="HBoxContainer" parent="SafeArea/Layout/Stage" unique_id=1085332545]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Selection" type="Label" parent="SafeArea/Layout/Stage/StageHeader" unique_id=950834960]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ModePicker" type="OptionButton" parent="SafeArea/Layout/Stage/StageHeader" unique_id=49539483]
+custom_minimum_size = Vector2(160, 40)
+layout_mode = 2
+
+[node name="StagePad" type="PanelContainer" parent="SafeArea/Layout/Stage" unique_id=814537795]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="StageInner" type="CenterContainer" parent="SafeArea/Layout/Stage/StagePad" unique_id=1268632580]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="TileWrap" type="Control" parent="SafeArea/Layout/Stage/StagePad/StageInner" unique_id=805060393]
+custom_minimum_size = Vector2(320, 320)
+layout_mode = 2
+
+[node name="Tile" type="PanelContainer" parent="SafeArea/Layout/Stage/StagePad/StageInner/TileWrap" unique_id=931396093]
+custom_minimum_size = Vector2(200, 200)
+layout_mode = 0
+offset_left = 60.0
+offset_top = 60.0
+offset_right = 260.0
+offset_bottom = 260.0
+
+[node name="EffectSprite" type="TextureRect" parent="SafeArea/Layout/Stage/StagePad/StageInner/TileWrap/Tile" unique_id=2006196104]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="GalleryScroll" type="ScrollContainer" parent="SafeArea/Layout/Stage/StagePad/StageInner" unique_id=2009821877]
+visible = false
+custom_minimum_size = Vector2(980, 620)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="GalleryGrid" type="GridContainer" parent="SafeArea/Layout/Stage/StagePad/StageInner/GalleryScroll" unique_id=2119497320]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 16
+columns = 5
