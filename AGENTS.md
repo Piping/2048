@@ -12,6 +12,7 @@
 - If a VFX loader needs directory enumeration, `DirAccess.get_files_at("res://...")` is acceptable only when the per-file payload is still loaded through Godot resources rather than host-path PNG reads.
 - For exported builds, do not assume directory enumeration will return raw `.png` filenames only. In this project, packaged runtime directory scans may surface `.png.import` entries instead, so any frame-sequence enumerator must normalize both `.png` and `.png.import` back to the `res://...png` resource path before loading.
 - When a packaged VFX case appears to "do nothing", first verify that the corresponding frame arrays are not empty in the exported runtime. In this repo, empty arrays caused by export-time directory/remap differences can look like missing VFX design rather than a hard load error.
+- Treat merge-VFX intensity as tiered progression, not flat reuse: from `128` through `2048`, each higher-value tile must read as more intense than the previous tier through some combination of scale, brightness, contrast, duration, layering, motion, or screen impact. Do not let `1024` feel weaker than `512`, and do not ship a higher tier by only reusing a lower-tier effect with equal or lower perceived intensity.
 
 ## Verification Rules
 

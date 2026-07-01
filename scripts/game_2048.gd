@@ -82,6 +82,22 @@ const DEBUG_PRESETS := {
 		"score": 6240,
 		"description": "512 merge board loaded."
 	},
+	"merge_1024": {
+		"board": [
+			512, 512, 64, 0,
+			256, 128, 32, 0,
+			64, 16, 8, 0,
+			4, 2, 0, 0
+		],
+		"play_board": [
+			1024, 64, 0, 0,
+			256, 128, 32, 0,
+			64, 16, 8, 0,
+			4, 2, 0, 2
+		],
+		"score": 10320,
+		"description": "1024 merge strike board loaded."
+	},
 	"combo_chain": {
 		"board": [
 			64, 64, 32, 32,
@@ -509,6 +525,21 @@ func _play_debug_preset(preset_id: String) -> void:
 				true,
 				false
 			)
+		"merge_1024":
+			_apply_debug_board(preset, "play_board")
+			_play_debug_merge(
+				[
+					{"from": 0, "to": 0, "value": 512, "merge": true},
+					{"from": 1, "to": 0, "value": 512, "merge": true},
+					{"from": 2, "to": 1, "value": 64, "merge": false}
+				],
+				[0],
+				15,
+				1,
+				1024,
+				false,
+				false
+			)
 		"combo_chain":
 			_apply_debug_board(preset, "play_board")
 			_play_debug_merge(
@@ -573,11 +604,11 @@ func _play_debug_merge(
 
 
 func _should_play_screen_merge_feedback(value: int) -> bool:
-	return value >= 1024
+	return value >= 2048
 
 
 func _should_play_milestone_feedback(value: int) -> bool:
-	return value >= 1024
+	return value >= 2048
 
 
 func _typed_int_array(values: Variant) -> Array[int]:

@@ -21,6 +21,11 @@ const PRESETS := [
 		"description": "Inferno-tier merge that also triggers milestone feedback."
 	},
 	{
+		"id": "merge_1024",
+		"label": "Merge 1024",
+		"description": "1024 merge strike test. Use this to tune the reverse-play lightning hit on the destination tile."
+	},
+	{
 		"id": "combo_chain",
 		"label": "Combo Chain",
 		"description": "Multiple merges in one beat to evaluate overlap, readability, and combo callouts."

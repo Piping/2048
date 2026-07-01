@@ -5,10 +5,10 @@ const TILE_FIRE_SHADER := preload("res://assets/shaders/tile_fire.gdshader")
 const EXPLOSION_WAVE_SHADER := preload("res://assets/shaders/explosion_wave.gdshader")
 const SCREEN_FRACTURE_SHADER := preload("res://assets/shaders/screen_fracture.gdshader")
 const VFX_128_BURST_PATH := "res://assets/vfx_750/part1/16.png"
+const VFX_1024_STRIKE_PATH := "res://assets/vfx_750/part11/528.png"
 const VFX_IMPACT_DIR := "res://assets/vfx_pack/Effect_Impact_1"
 const VFX_EXPLOSION_DIR := "res://assets/vfx_pack/Effect_Explosion2_1"
 const HIGH_TIER_OVERLAY_PATHS := {
-	1024: "res://assets/vfx_750/part1/23.png",
 	2048: "res://assets/vfx_750/part1/24.png",
 	4096: "res://assets/vfx_750/part1/25.png",
 	8192: "res://assets/vfx_750/part1/26.png"
@@ -31,6 +31,7 @@ var explosion_level_threshold := 64
 var tile_vfx_time := 0.0
 var high_tier_overlay_frames: Dictionary = {}
 var tile_128_burst_frames: Array[Texture2D] = []
+var tile_1024_strike_frames: Array[Texture2D] = []
 var impact_frames: Array[Texture2D] = []
 var explosion_frames: Array[Texture2D] = []
 var milestone_banner_active := false
@@ -43,14 +44,15 @@ func _ready() -> void:
 	animation_overlay.visible = true
 	# 750-Free tile VFX files are sprite atlases, not one-frame-per-file sequences.
 	tile_128_burst_frames = _load_atlas_frames_from_file(VFX_128_BURST_PATH, Vector2i(14, 9), 0)
+	tile_1024_strike_frames = _load_atlas_frames_from_file(VFX_1024_STRIKE_PATH, Vector2i(13, 9), 0)
 	for value in HIGH_TIER_OVERLAY_PATHS.keys():
 		high_tier_overlay_frames[value] = _load_atlas_frames_from_file(HIGH_TIER_OVERLAY_PATHS[value], Vector2i(14, 9), 0)
 	impact_frames = _load_sequence_frames(VFX_IMPACT_DIR)
 	explosion_frames = _load_sequence_frames(VFX_EXPLOSION_DIR)
 	print(
-		"[vfx_controller] burst=%d overlay1024=%d overlay2048=%d overlay4096=%d overlay8192=%d impact=%d explosion=%d" % [
+		"[vfx_controller] burst=%d strike1024=%d overlay2048=%d overlay4096=%d overlay8192=%d impact=%d explosion=%d" % [
 			tile_128_burst_frames.size(),
-			_overlay_frames_for_value(1024).size(),
+			tile_1024_strike_frames.size(),
 			_overlay_frames_for_value(2048).size(),
 			_overlay_frames_for_value(4096).size(),
 			_overlay_frames_for_value(8192).size(),
@@ -130,8 +132,8 @@ func apply_tile_overlay(index: int, value: int, panel: PanelContainer) -> void:
 	fx_layer.material = fire_material
 	_sync_tile_fire_material(panel, fire_material)
 	# Keep the shader as the long-lived state and reserve sprite overlays for the
-	# very top tier only; the sprite reads poorly on 512-sized milestones.
-	if value < 1024:
+	# very top tier only; 1024 now uses a one-shot strike during the merge beat.
+	if value < 2048:
 		return
 
 	fx_sprite.visible = true
@@ -300,6 +302,18 @@ func _play_move_animations(move_animations: Array) -> void:
 func _spawn_merge_burst(tile_index: int, value: int) -> void:
 	var tile: PanelContainer = board_view.panel_at(tile_index)
 	var center := tile.global_position - animation_overlay.global_position + tile.size * 0.5
+	if value == 1024:
+		_play_tile_atlas_once(
+			tile_1024_strike_frames,
+			tile_index,
+			20.0,
+			Vector2(2.36, 2.48),
+			Vector2(0.0, -tile.size.y * 0.06),
+			0.98,
+			false
+		)
+		_play_impact_flash(value)
+		return
 	_play_sequence(effect_frames_for_value(value), center, tile.size * (2.0 if value < fire_level_threshold else 2.6), 30.0, true, 0.95 if value < fire_level_threshold else 1.0)
 	if value >= 128:
 		_play_sequence(impact_frames, center, tile.size * 1.9, 30.0, false, 1.0)
@@ -453,11 +467,11 @@ func effect_frames_for_value(value: int) -> Array[Texture2D]:
 	return impact_frames if value < fire_level_threshold else explosion_frames
 
 
-func _play_sequence(frames: Array[Texture2D], center: Vector2, size: Vector2, fps: float, additive: bool, alpha: float = 1.0) -> void:
+func _play_sequence(frames: Array[Texture2D], center: Vector2, size: Vector2, fps: float, additive: bool, alpha: float = 1.0, reverse: bool = false) -> void:
 	if frames.is_empty():
 		return
 	var sprite := TextureRect.new()
-	sprite.texture = frames[0]
+	sprite.texture = frames[frames.size() - 1] if reverse else frames[0]
 	sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	sprite.size = size
@@ -467,7 +481,7 @@ func _play_sequence(frames: Array[Texture2D], center: Vector2, size: Vector2, fp
 	if additive:
 		sprite.material = _additive_material()
 	animation_overlay.add_child(sprite)
-	_animate_sequence(sprite, frames, fps)
+	_animate_sequence(sprite, frames, fps, reverse)
 
 
 func _play_tile_atlas_once(
@@ -476,25 +490,26 @@ func _play_tile_atlas_once(
 	fps: float,
 	scale_multiplier: Vector2,
 	offset: Vector2,
-	alpha: float
+	alpha: float,
+	reverse: bool = false
 ) -> void:
 	if frames.is_empty():
 		return
 	var tile: PanelContainer = board_view.panel_at(tile_index)
 	var size := tile.size * scale_multiplier
 	var center := tile.global_position - animation_overlay.global_position + tile.size * 0.5 + offset
-	_play_sequence(frames, center, size, fps, true, alpha)
+	_play_sequence(frames, center, size, fps, true, alpha, reverse)
 
 
-func _animate_sequence(target: TextureRect, frames: Array[Texture2D], fps: float) -> void:
+func _animate_sequence(target: TextureRect, frames: Array[Texture2D], fps: float, reverse: bool = false) -> void:
 	if frames.is_empty():
 		_queue_free_if_valid(target)
 		return
-	var index := 0
-	while is_instance_valid(target) and index < frames.size():
+	var index := frames.size() - 1 if reverse else 0
+	while is_instance_valid(target) and index >= 0 and index < frames.size():
 		target.texture = frames[index]
-		index += 1
-		if index >= frames.size():
+		index += -1 if reverse else 1
+		if index < 0 or index >= frames.size():
 			break
 		await get_tree().create_timer(1.0 / fps).timeout
 	_queue_free_if_valid(target)
@@ -527,8 +542,6 @@ func _overlay_frames_for_value(value: int) -> Array[Texture2D]:
 		return high_tier_overlay_frames.get(4096, [])
 	if value >= 2048:
 		return high_tier_overlay_frames.get(2048, [])
-	if value >= 1024:
-		return high_tier_overlay_frames.get(1024, [])
 	return []
 
 
