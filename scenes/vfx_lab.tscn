@@ -137,22 +137,25 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="StageInner" type="CenterContainer" parent="SafeArea/Layout/Stage/StagePad" unique_id=1268632580]
+[node name="StageInner" type="Control" parent="SafeArea/Layout/Stage/StagePad" unique_id=1268632580]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
 [node name="TileWrap" type="Control" parent="SafeArea/Layout/Stage/StagePad/StageInner" unique_id=805060393]
-custom_minimum_size = Vector2(320, 320)
-layout_mode = 2
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="Tile" type="PanelContainer" parent="SafeArea/Layout/Stage/StagePad/StageInner/TileWrap" unique_id=931396093]
-custom_minimum_size = Vector2(200, 200)
 layout_mode = 0
-offset_left = 60.0
-offset_top = 60.0
-offset_right = 260.0
-offset_bottom = 260.0
+offset_left = 80.0
+offset_top = 80.0
+offset_right = 400.0
+offset_bottom = 400.0
 
 [node name="EffectSprite" type="TextureRect" parent="SafeArea/Layout/Stage/StagePad/StageInner/TileWrap/Tile" unique_id=2006196104]
 layout_mode = 2
@@ -161,9 +164,12 @@ mouse_filter = 2
 [node name="GalleryScroll" type="ScrollContainer" parent="SafeArea/Layout/Stage/StagePad/StageInner" unique_id=2009821877]
 visible = false
 custom_minimum_size = Vector2(980, 620)
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 
 [node name="GalleryGrid" type="GridContainer" parent="SafeArea/Layout/Stage/StagePad/StageInner/GalleryScroll" unique_id=2119497320]
 layout_mode = 2

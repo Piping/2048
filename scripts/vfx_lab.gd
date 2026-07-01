@@ -42,6 +42,10 @@ const PART_NOTES := {
 @onready var gallery_scroll: ScrollContainer = $SafeArea/Layout/Stage/StagePad/StageInner/GalleryScroll
 @onready var gallery_grid: GridContainer = $SafeArea/Layout/Stage/StagePad/StageInner/GalleryScroll/GalleryGrid
 
+const STAGE_PREVIEW_MARGIN := 36.0
+const STAGE_TILE_MAX_SIZE := 520.0
+const PREVIEW_SPRITE_FILL := 0.9
+
 var effects: Array[Dictionary] = []
 var selected_effect := 0
 var selected_row := 0
@@ -72,10 +76,10 @@ func _ready() -> void:
 	fps_slider.value_changed.connect(_on_fps_changed)
 	scale_slider.value_changed.connect(_on_scale_changed)
 	preview_tile.clip_contents = true
-	preview_tile.pivot_offset = preview_tile.size * 0.5
 	preview_sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	preview_sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	preview_sprite.material = _additive_material()
+	tile_wrap.resized.connect(_layout_stage_preview)
 	mode_picker.select(1)
 	_on_fps_changed(fps_slider.value)
 	_on_scale_changed(scale_slider.value)
@@ -272,9 +276,7 @@ func _on_fps_changed(value: float) -> void:
 
 func _on_scale_changed(value: float) -> void:
 	scale_value.text = "%.2fx" % value
-	var size := Vector2(180, 180) * value
-	preview_sprite.size = size
-	preview_sprite.position = preview_tile.size * 0.5 - size * 0.5
+	_layout_stage_preview()
 	if gallery_mode:
 		_refresh_gallery()
 
@@ -322,6 +324,7 @@ func _refresh_mode() -> void:
 		_refresh_gallery()
 	else:
 		stage_label.text = "%s  %s" % [_current_effect()["part"], _current_effect()["label"]]
+		_layout_stage_preview()
 	_refresh_preview_frame()
 
 
@@ -476,6 +479,25 @@ func _refresh_preview_frame() -> void:
 		return
 	var fps: float = maxf(1.0, float(fps_slider.value))
 	preview_sprite.texture = atlas_frames[_frame_index_for_time(atlas_frames.size(), fps)]
+
+
+func _layout_stage_preview() -> void:
+	if gallery_mode:
+		return
+	var wrap_size := tile_wrap.size
+	if wrap_size.x <= 0.0 or wrap_size.y <= 0.0:
+		return
+	var tile_extent: float = minf(
+		STAGE_TILE_MAX_SIZE,
+		maxf(180.0, minf(wrap_size.x, wrap_size.y) - STAGE_PREVIEW_MARGIN * 2.0)
+	)
+	var tile_size: Vector2 = Vector2.ONE * tile_extent
+	preview_tile.size = tile_size
+	preview_tile.position = (wrap_size - tile_size) * 0.5
+	preview_tile.pivot_offset = tile_size * 0.5
+	var sprite_size: Vector2 = tile_size * (PREVIEW_SPRITE_FILL * float(scale_slider.value))
+	preview_sprite.size = sprite_size
+	preview_sprite.position = (tile_size - sprite_size) * 0.5
 
 
 func _frame_index_for_time(frame_count: int, fps: float) -> int:

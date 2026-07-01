@@ -18,8 +18,10 @@ func _ready() -> void:
 func configure(effect_context: Dictionary) -> void:
 	_tile_rect = effect_context.get("tile_rect", Rect2(Vector2.ZERO, Vector2.ZERO))
 	var tile_value := int(effect_context.get("tile_value", 0))
+	var theme = effect_context.get("theme", null)
 	position = Vector2.ZERO
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_apply_theme(theme)
 	flash.position = _tile_rect.position - _tile_rect.size * 0.18
 	flash.size = _tile_rect.size * 1.36
 	flash.pivot_offset = flash.size * 0.5
@@ -46,6 +48,20 @@ func _play_hit_sfx() -> void:
 
 func finish() -> void:
 	queue_free()
+
+
+func _apply_theme(theme) -> void:
+	if theme == null:
+		return
+	var flash_color = theme.get("scene_4096_flash")
+	if flash_color is Color:
+		flash.color = flash_color
+	var ring_color = theme.get("scene_4096_ring")
+	if ring_color is Color:
+		ring.color = ring_color
+	var label_color = theme.get("scene_4096_label")
+	if label_color is Color:
+		label.add_theme_color_override("font_color", label_color)
 
 
 func _build_hit_stream() -> AudioStreamWAV:

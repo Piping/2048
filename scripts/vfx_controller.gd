@@ -35,6 +35,7 @@ var tile_1024_strike_frames: Array[Texture2D] = []
 var impact_frames: Array[Texture2D] = []
 var explosion_frames: Array[Texture2D] = []
 var milestone_banner_active := false
+var theme_config
 
 
 func _ready() -> void:
@@ -80,6 +81,13 @@ func configure(
 	high_level_glow_threshold = high_level_glow
 	fire_level_threshold = fire_level
 	explosion_level_threshold = explosion_level
+
+
+func apply_theme(theme) -> void:
+	theme_config = theme
+	if theme_config == null:
+		return
+	celebration_particles.color = _theme_color("celebration_banner_color", celebration_particles.color)
 
 
 func reset_debug_state() -> void:
@@ -215,23 +223,24 @@ func play_move_feedback(board: Array[int], move_animations: Array, spawned_index
 
 func play_celebration(intensity_boost: float = 1.0) -> void:
 	flash_overlay.visible = true
-	flash_overlay.color = Color(1, 0.68, 0.2, 0.0)
+	var base_flash := _theme_color("flash_overlay_color", Color(1, 0.68, 0.2, 1.0))
+	flash_overlay.color = Color(base_flash.r, base_flash.g, base_flash.b, 0.0)
 	var flash_tween: Tween = create_tween()
 	flash_tween.set_trans(Tween.TRANS_SINE)
-	flash_tween.tween_property(flash_overlay, "color", Color(1, 0.68, 0.2, min(0.92, 0.7 * intensity_boost)), 0.12)
-	flash_tween.tween_property(flash_overlay, "color", Color(1, 0.2, 0.05, 0.0), 0.4 + max(0.0, intensity_boost - 1.0) * 0.12)
+	flash_tween.tween_property(flash_overlay, "color", Color(base_flash.r, base_flash.g, base_flash.b, min(0.92, 0.7 * intensity_boost)), 0.12)
+	flash_tween.tween_property(flash_overlay, "color", Color(base_flash.r * 0.45, base_flash.g * 0.18, base_flash.b * 0.28, 0.0), 0.4 + max(0.0, intensity_boost - 1.0) * 0.12)
 	flash_tween.finished.connect(_hide_flash_overlay)
 
 	var viewport_size := get_viewport().get_visible_rect().size
 	celebration_particles.position = Vector2(viewport_size.x * 0.5, viewport_size.y * 0.32)
-	celebration_particles.color = Color(1.0, 0.78, 0.24, 1.0)
+	celebration_particles.color = _theme_color("celebration_banner_color", Color(1.0, 0.78, 0.24, 1.0))
 	celebration_particles.amount = int(round(120 * intensity_boost))
 	celebration_particles.initial_velocity_min = 180.0 * intensity_boost
 	celebration_particles.initial_velocity_max = 420.0 * intensity_boost
 	celebration_particles.visible = true
 	celebration_particles.restart()
 	celebration_particles.emitting = true
-	_play_banner_flyby("2048", Color(1.0, 0.84, 0.18, 1.0))
+	_play_banner_flyby("2048", _theme_color("celebration_banner_color", Color(1.0, 0.84, 0.18, 1.0)))
 
 
 func highest_merge_tile(board: Array[int], merged_indices: Array[int]) -> int:
@@ -256,9 +265,9 @@ func play_screen_merge_feedback(top_merge_value: int, focus_tile_index: int, int
 func play_milestone_feedback(value: int, intensity_boost: float = 1.0) -> void:
 	_play_board_heat_sweep(value, intensity_boost)
 	if value >= 1024:
-		_play_banner_flyby(str(value), Color(1.0, 0.72, 0.16, 1.0))
+		_play_banner_flyby(str(value), _theme_color("celebration_banner_color", Color(1.0, 0.72, 0.16, 1.0)))
 	elif value >= 512:
-		_play_corner_badge(str(value), Color(1.0, 0.55, 0.10, 1.0))
+		_play_corner_badge(str(value), _theme_color("milestone_badge_color", Color(1.0, 0.55, 0.10, 1.0)))
 
 
 func _pulse_tile(tile: PanelContainer, peak_scale: Vector2, duration: float) -> void:
@@ -301,10 +310,10 @@ func _play_move_animations(move_animations: Array) -> void:
 		ghost_style.border_width_bottom = 2
 		ghost_style.border_color = tile_colors.get(value, Color("3c3a32")).lightened(0.18)
 		if value >= fire_level_threshold:
-			ghost_style.shadow_color = Color(1.0, 0.36, 0.08, 0.85)
+			ghost_style.shadow_color = _theme_color("tile_border_color_fire", Color(1.0, 0.36, 0.08, 0.85))
 			ghost_style.shadow_size = 22
 		elif value >= high_level_glow_threshold:
-			ghost_style.shadow_color = Color(1.0, 0.82, 0.22, 0.55)
+			ghost_style.shadow_color = _theme_color("tile_border_color_256", Color(1.0, 0.82, 0.22, 0.55))
 			ghost_style.shadow_size = 14
 		ghost.add_theme_stylebox_override("panel", ghost_style)
 		ghost.modulate = Color(1, 1, 1, 0.82)
@@ -316,7 +325,7 @@ func _play_move_animations(move_animations: Array) -> void:
 		ghost_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		ghost_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		ghost_label.add_theme_font_size_override("font_size", int(font_size_callback.call(value)))
-		ghost_label.add_theme_color_override("font_color", Color("776e65") if dark_text_values.has(value) else Color("f9f6f2"))
+		ghost_label.add_theme_color_override("font_color", _tile_text_color(value))
 		ghost.add_child(ghost_label)
 		animation_overlay.add_child(ghost)
 
@@ -383,14 +392,15 @@ func _play_board_impact(board: Array[int], merged_indices: Array[int], intensity
 func _play_board_heat_sweep(value: int, intensity_boost: float = 1.0) -> void:
 	var sweep := ColorRect.new()
 	sweep.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	sweep.color = Color(1.0, 0.55, 0.10, 0.0)
+	var sweep_base := _theme_color("screen_outer_high", Color(1.0, 0.55, 0.10, 1.0))
+	sweep.color = Color(sweep_base.r, sweep_base.g, sweep_base.b, 0.0)
 	sweep.size = get_viewport().get_visible_rect().size
 	sweep.position = Vector2.ZERO
 	animation_overlay.add_child(sweep)
 	var tween := create_tween()
 	tween.set_trans(Tween.TRANS_SINE)
-	tween.tween_property(sweep, "color", Color(1.0, 0.62, 0.16, min(0.36, (0.16 if value < 1024 else 0.24) * intensity_boost)), 0.08)
-	tween.tween_property(sweep, "color", Color(1.0, 0.18, 0.04, 0.0), 0.42 + max(0.0, intensity_boost - 1.0) * 0.08)
+	tween.tween_property(sweep, "color", Color(sweep_base.r, sweep_base.g, sweep_base.b, min(0.36, (0.16 if value < 1024 else 0.24) * intensity_boost)), 0.08)
+	tween.tween_property(sweep, "color", Color(sweep_base.r * 0.28, sweep_base.g * 0.18, sweep_base.b * 0.22, 0.0), 0.42 + max(0.0, intensity_boost - 1.0) * 0.08)
 	tween.finished.connect(_queue_free_if_valid.bind(sweep))
 
 
@@ -405,7 +415,7 @@ func _play_combo_feedback(combo_count: int, board: Array[int], merged_indices: A
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.add_theme_font_size_override("font_size", 26)
-	label.add_theme_color_override("font_color", Color(1.0, 0.92, 0.60, 1.0))
+	label.add_theme_color_override("font_color", _theme_color("combo_label_color", Color(1.0, 0.92, 0.60, 1.0)))
 	label.size = Vector2(190, 42)
 	label.position = anchor - label.size * 0.5
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -647,18 +657,14 @@ func _play_screen_blast(value: int, center_uv: Vector2, intensity_boost: float =
 	var material := ShaderMaterial.new()
 	material.shader = EXPLOSION_WAVE_SHADER
 	var clamped_center := center_uv.clamp(Vector2(0.08, 0.08), Vector2(0.92, 0.92))
+	var core_color := _theme_color("screen_core_low", Color(1.0, 0.95, 0.65, 1.0)) if value < fire_level_threshold else _theme_color("screen_core_high", Color(1.0, 0.82, 0.28, 1.0))
+	var outer_color := _theme_color("screen_outer_low", Color(1.0, 0.62, 0.14, 1.0)) if value < fire_level_threshold else _theme_color("screen_outer_high", Color(1.0, 0.28, 0.05, 1.0))
 	material.set_shader_parameter("center_uv", clamped_center)
-	material.set_shader_parameter(
-		"core_color",
-		Color(1.0, 0.95, 0.65, 1.0) if value < fire_level_threshold else Color(1.0, 0.82, 0.28, 1.0)
-	)
-	material.set_shader_parameter(
-		"outer_color",
-		Color(1.0, 0.62, 0.14, 1.0) if value < fire_level_threshold else Color(1.0, 0.28, 0.05, 1.0)
-	)
+	material.set_shader_parameter("core_color", core_color)
+	material.set_shader_parameter("outer_color", outer_color)
 	screen_fx.material = material
 	screen_fx_secondary.visible = true
-	screen_fx_secondary.color = Color(1.0, 0.84, 0.42, 0.0) if value < fire_level_threshold else Color(1.0, 0.42, 0.10, 0.0)
+	screen_fx_secondary.color = Color(outer_color.r, outer_color.g, outer_color.b, 0.0)
 	screen_fx_secondary.material = null
 	var tween: Tween = create_tween()
 	tween.set_trans(Tween.TRANS_SINE)
@@ -667,13 +673,13 @@ func _play_screen_blast(value: int, center_uv: Vector2, intensity_boost: float =
 	tween.tween_property(
 		screen_fx_secondary,
 		"color",
-		Color(1.0, 0.96, 0.75, min(0.30, 0.18 * intensity_boost)) if value < fire_level_threshold else Color(1.0, 0.58, 0.16, min(0.36, 0.24 * intensity_boost)),
+		Color(outer_color.r, outer_color.g, outer_color.b, min(0.30, 0.18 * intensity_boost)) if value < fire_level_threshold else Color(outer_color.r, outer_color.g, outer_color.b, min(0.36, 0.24 * intensity_boost)),
 		0.12
 	)
 	tween.tween_property(
 		screen_fx_secondary,
 		"color",
-		Color(1.0, 0.12, 0.04, 0.0),
+		Color(outer_color.r * 0.25, outer_color.g * 0.12, outer_color.b * 0.18, 0.0),
 		1.38
 	)
 	tween.finished.connect(_finish_screen_blast.bind(material))
@@ -686,11 +692,9 @@ func _play_screen_fracture(value: int, center_uv: Vector2, intensity_boost: floa
 	material.shader = SCREEN_FRACTURE_SHADER
 	material.set_shader_parameter("intensity", (1.22 if value < fire_level_threshold else 1.75) * intensity_boost)
 	var clamped_center := center_uv.clamp(Vector2(0.08, 0.08), Vector2(0.92, 0.92))
+	var tint_color := _theme_color("fracture_tint_low", Color(1.0, 0.82, 0.36, 1.0)) if value < fire_level_threshold else _theme_color("fracture_tint_high", Color(1.0, 0.46, 0.12, 1.0))
 	material.set_shader_parameter("center_uv", clamped_center)
-	material.set_shader_parameter(
-		"tint_color",
-		Color(1.0, 0.82, 0.36, 1.0) if value < fire_level_threshold else Color(1.0, 0.46, 0.12, 1.0)
-	)
+	material.set_shader_parameter("tint_color", tint_color)
 	screen_fx_secondary.material = material
 	var tween: Tween = create_tween()
 	tween.tween_method(_set_shader_progress.bind(material), 0.0, 1.0, 1.5)
@@ -700,16 +704,17 @@ func _play_screen_fracture(value: int, center_uv: Vector2, intensity_boost: floa
 func _play_impact_flash(value: int, intensity_boost: float = 1.0) -> void:
 	impact_flash.visible = true
 	impact_flash.material = null
-	impact_flash.color = Color(1.0, 0.98, 0.94, 0.0) if value < fire_level_threshold else Color(1.0, 0.82, 0.54, 0.0)
+	var flash_color := _theme_color("impact_flash_low", Color(1.0, 0.98, 0.94, 1.0)) if value < fire_level_threshold else _theme_color("impact_flash_high", Color(1.0, 0.82, 0.54, 1.0))
+	impact_flash.color = Color(flash_color.r, flash_color.g, flash_color.b, 0.0)
 	var tween: Tween = create_tween()
 	tween.set_trans(Tween.TRANS_SINE)
 	tween.tween_property(
 		impact_flash,
 		"color",
-		Color(1.0, 0.98, 0.94, min(0.36, 0.24 * intensity_boost)) if value < fire_level_threshold else Color(1.0, 0.82, 0.54, min(0.42, 0.30 * intensity_boost)),
+		Color(flash_color.r, flash_color.g, flash_color.b, min(0.36, 0.24 * intensity_boost)) if value < fire_level_threshold else Color(flash_color.r, flash_color.g, flash_color.b, min(0.42, 0.30 * intensity_boost)),
 		0.04
 	)
-	tween.tween_property(impact_flash, "color", Color(1.0, 0.2, 0.06, 0.0), 0.18)
+	tween.tween_property(impact_flash, "color", Color(flash_color.r * 0.42, flash_color.g * 0.22, flash_color.b * 0.16, 0.0), 0.18)
 	tween.finished.connect(_hide_impact_flash)
 
 
@@ -802,3 +807,20 @@ func _list_png_resource_paths(directory: String) -> PackedStringArray:
 		seen[png_name] = true
 		paths.append("%s/%s" % [directory, png_name])
 	return paths
+
+
+func _theme_color(property_name: String, fallback: Color) -> Color:
+	if theme_config == null:
+		return fallback
+	var value = theme_config.get(property_name)
+	return value if value is Color else fallback
+
+
+func _tile_text_color(value: int) -> Color:
+	if dark_text_values.has(value):
+		var direct = dark_text_values[value]
+		return direct if direct is Color else Color("776e65")
+	if value > 2048 and dark_text_values.has(2048):
+		var high = dark_text_values[2048]
+		return high if high is Color else Color("f9f6f2")
+	return Color("f9f6f2")

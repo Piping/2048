@@ -7,6 +7,8 @@
 [ext_resource type="Script" path="res://scripts/effects/effect_director.gd" id="5"]
 [ext_resource type="Script" path="res://scripts/effects/effect_audio_manager.gd" id="6"]
 [ext_resource type="Resource" path="res://assets/effects/default_effect_profiles.tres" id="7"]
+[ext_resource type="Resource" path="res://assets/themes/classic/theme.tres" id="8"]
+[ext_resource type="Resource" path="res://assets/themes/promare/theme.tres" id="9"]
 
 [node name="Main" type="Control" unique_id=1769943804]
 layout_mode = 3
@@ -16,6 +18,8 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1")
+classic_theme = ExtResource("8")
+promare_theme = ExtResource("9")
 
 [node name="Background" type="ColorRect" parent="." unique_id=714027241]
 layout_mode = 1
@@ -131,23 +135,36 @@ theme_override_constants/v_separation = 14
 columns = 4
 script = ExtResource("2")
 
-[node name="Controls" type="HBoxContainer" parent="SafeArea/VBox" unique_id=709551752]
+[node name="Controls" type="VBoxContainer" parent="SafeArea/VBox" unique_id=709551752]
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="UndoButton" type="Button" parent="SafeArea/VBox/Controls" unique_id=1142966978]
-custom_minimum_size = Vector2(144, 52)
+[node name="ButtonsRow" type="HBoxContainer" parent="SafeArea/VBox/Controls" unique_id=132017744]
 layout_mode = 2
-text = "Undo (3)"
+size_flags_horizontal = 3
+theme_override_constants/separation = 16
 
-[node name="NewGameButton" type="Button" parent="SafeArea/VBox/Controls" unique_id=1473836142]
-custom_minimum_size = Vector2(160, 52)
-layout_mode = 2
-text = "New Game"
-
-[node name="SelfPlayButton" type="Button" parent="SafeArea/VBox/Controls" unique_id=449536577]
+[node name="ThemePicker" type="OptionButton" parent="SafeArea/VBox/Controls/ButtonsRow" unique_id=1438429501]
 custom_minimum_size = Vector2(156, 52)
 layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="UndoButton" type="Button" parent="SafeArea/VBox/Controls/ButtonsRow" unique_id=1142966978]
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Undo (3)"
+
+[node name="NewGameButton" type="Button" parent="SafeArea/VBox/Controls/ButtonsRow" unique_id=1473836142]
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "New Game"
+
+[node name="SelfPlayButton" type="Button" parent="SafeArea/VBox/Controls/ButtonsRow" unique_id=449536577]
+custom_minimum_size = Vector2(156, 52)
+layout_mode = 2
+size_flags_horizontal = 3
 text = "Start Self-Play"
 
 [node name="Status" type="Label" parent="SafeArea/VBox/Controls" unique_id=1044235637]

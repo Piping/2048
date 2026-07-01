@@ -1,0 +1,67 @@
+[gd_resource type="Resource" script_class="ThemeConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/themes/theme_config.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+theme_id = "classic"
+display_name = "Classic"
+background_color = Color(0.964706, 0.94902, 0.901961, 1)
+flash_overlay_color = Color(1, 0.6, 0.15, 1)
+title_color = Color(0.466667, 0.431373, 0.396078, 1)
+subtitle_color = Color(0.466667, 0.431373, 0.396078, 1)
+help_color = Color(0.466667, 0.431373, 0.396078, 1)
+status_color = Color(0.466667, 0.431373, 0.396078, 1)
+score_card_color = Color(0.733333, 0.678431, 0.627451, 1)
+score_label_color = Color(0.933333, 0.894118, 0.854902, 1)
+score_value_color = Color(1, 1, 1, 1)
+board_frame_color = Color(0.733333, 0.678431, 0.627451, 1)
+board_padding_color = Color(0.803922, 0.756863, 0.705882, 1)
+button_color = Color(0.560784, 0.478431, 0.4, 1)
+button_text_color = Color(0.976471, 0.964706, 0.94902, 1)
+tile_colors = {
+0: Color(0.803922, 0.756863, 0.705882, 1),
+2: Color(0.933333, 0.894118, 0.854902, 1),
+4: Color(0.929412, 0.878431, 0.784314, 1),
+8: Color(0.94902, 0.694118, 0.47451, 1),
+16: Color(0.960784, 0.584314, 0.388235, 1),
+32: Color(0.964706, 0.486275, 0.372549, 1),
+64: Color(0.964706, 0.368627, 0.231373, 1),
+128: Color(0.929412, 0.811765, 0.447059, 1),
+256: Color(0.929412, 0.8, 0.380392, 1),
+512: Color(0.929412, 0.784314, 0.313726, 1),
+1024: Color(0.929412, 0.772549, 0.247059, 1),
+2048: Color(0.929412, 0.760784, 0.180392, 1)
+}
+tile_text_colors = {
+0: Color(0.466667, 0.431373, 0.396078, 1),
+2: Color(0.466667, 0.431373, 0.396078, 1),
+4: Color(0.466667, 0.431373, 0.396078, 1),
+8: Color(0.976471, 0.964706, 0.94902, 1),
+16: Color(0.976471, 0.964706, 0.94902, 1),
+32: Color(0.976471, 0.964706, 0.94902, 1),
+64: Color(0.976471, 0.964706, 0.94902, 1),
+128: Color(0.976471, 0.964706, 0.94902, 1),
+256: Color(0.976471, 0.964706, 0.94902, 1),
+512: Color(0.976471, 0.964706, 0.94902, 1),
+1024: Color(0.976471, 0.964706, 0.94902, 1),
+2048: Color(0.976471, 0.964706, 0.94902, 1)
+}
+tile_corner_radius = 18
+tile_border_color_128 = Color(1, 0.96, 0.72, 0.72)
+tile_border_color_256 = Color(1, 0.9, 0.48, 0.9)
+tile_border_color_fire = Color(1, 0.84, 0.25, 0.98)
+combo_label_color = Color(1, 0.92, 0.6, 1)
+milestone_badge_color = Color(1, 0.55, 0.1, 1)
+celebration_banner_color = Color(1, 0.84, 0.18, 1)
+screen_core_low = Color(1, 0.95, 0.65, 1)
+screen_core_high = Color(1, 0.82, 0.28, 1)
+screen_outer_low = Color(1, 0.62, 0.14, 1)
+screen_outer_high = Color(1, 0.28, 0.05, 1)
+fracture_tint_low = Color(1, 0.82, 0.36, 1)
+fracture_tint_high = Color(1, 0.46, 0.12, 1)
+impact_flash_low = Color(1, 0.98, 0.94, 1)
+impact_flash_high = Color(1, 0.82, 0.54, 1)
+scene_4096_flash = Color(1, 0.95, 0.66, 1)
+scene_4096_ring = Color(1, 0.72, 0.18, 1)
+scene_4096_label = Color(1, 0.94, 0.74, 1)

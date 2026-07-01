@@ -2,6 +2,7 @@ extends Control
 
 const BOARD_MODEL_SCRIPT := preload("res://scripts/board_model.gd")
 const SELF_PLAY_AGENT_SCRIPT := preload("res://scripts/self_play_agent.gd")
+const DEFAULT_THEME_ID := "classic"
 const GRID_SIZE := 4
 const CELL_COUNT := GRID_SIZE * GRID_SIZE
 const TARGET_VALUE := 2048
@@ -11,27 +12,6 @@ const MAX_UNDO_STEPS := 3
 const HIGH_LEVEL_GLOW_THRESHOLD := 128
 const FIRE_LEVEL_THRESHOLD := 512
 const EXPLOSION_LEVEL_THRESHOLD := 64
-
-const TILE_COLORS := {
-	0: Color("cdc1b4"),
-	2: Color("eee4da"),
-	4: Color("ede0c8"),
-	8: Color("f2b179"),
-	16: Color("f59563"),
-	32: Color("f67c5f"),
-	64: Color("f65e3b"),
-	128: Color("edcf72"),
-	256: Color("edcc61"),
-	512: Color("edc850"),
-	1024: Color("edc53f"),
-	2048: Color("edc22e")
-}
-
-const DARK_TEXT_VALUES := {
-	0: true,
-	2: true,
-	4: true
-}
 
 const DEBUG_PRESETS := {
 	"spawn_pulse": {
@@ -148,13 +128,18 @@ const DEBUG_PRESETS := {
 	}
 }
 
+@export var classic_theme: Resource
+@export var promare_theme: Resource
+
 @onready var score_label: Label = $SafeArea/VBox/Header/ScoreCard/ScoreBox/Value
 @onready var best_label: Label = $SafeArea/VBox/Header/BestCard/BestBox/Value
 @onready var status_label: Label = $SafeArea/VBox/Controls/Status
 @onready var board_grid = $SafeArea/VBox/BoardFrame/BoardPadding/BoardCenter/BoardGrid
-@onready var undo_button: Button = $SafeArea/VBox/Controls/UndoButton
-@onready var new_game_button: Button = $SafeArea/VBox/Controls/NewGameButton
-@onready var self_play_button: Button = $SafeArea/VBox/Controls/SelfPlayButton
+@onready var background_rect: ColorRect = $Background
+@onready var undo_button: Button = $SafeArea/VBox/Controls/ButtonsRow/UndoButton
+@onready var new_game_button: Button = $SafeArea/VBox/Controls/ButtonsRow/NewGameButton
+@onready var self_play_button: Button = $SafeArea/VBox/Controls/ButtonsRow/SelfPlayButton
+@onready var theme_picker: OptionButton = $SafeArea/VBox/Controls/ButtonsRow/ThemePicker
 @onready var safe_area: MarginContainer = $SafeArea
 @onready var flash_overlay: ColorRect = $FlashOverlay
 @onready var vfx_controller = $Effects
@@ -181,6 +166,9 @@ var highest_announced_tile := 0
 var self_play_enabled := true
 var self_play_running := false
 var self_play_timer: SceneTreeTimer = null
+var theme_configs: Dictionary = {}
+var current_theme_id := DEFAULT_THEME_ID
+var current_theme
 
 
 func _ready() -> void:
@@ -188,23 +176,28 @@ func _ready() -> void:
 	board_model = BOARD_MODEL_SCRIPT.new()
 	board_view = board_grid
 	self_play_agent = SELF_PLAY_AGENT_SCRIPT.new()
+	_initialize_themes()
+	_load_best_score()
+	_resolve_current_theme()
 	_apply_display_safe_area()
 	vfx_controller.configure(
 		board_view,
 		flash_overlay,
 		Callable(self, "_font_size_for"),
-		TILE_COLORS,
-		DARK_TEXT_VALUES,
+		current_theme.tile_colors,
+		current_theme.tile_text_colors,
 		HIGH_LEVEL_GLOW_THRESHOLD,
 		FIRE_LEVEL_THRESHOLD,
 		EXPLOSION_LEVEL_THRESHOLD
 	)
+	vfx_controller.apply_theme(current_theme)
 	effect_director.configure(vfx_controller)
+	_populate_theme_picker()
 	_apply_theme()
-	_load_best_score()
 	undo_button.pressed.connect(_on_undo_pressed)
 	new_game_button.pressed.connect(_on_new_game_pressed)
 	self_play_button.pressed.connect(_on_self_play_pressed)
+	theme_picker.item_selected.connect(_on_theme_selected)
 	debug_panel.preset_load_requested.connect(_on_debug_preset_load_requested)
 	debug_panel.preset_play_requested.connect(_on_debug_preset_play_requested)
 	debug_panel.reset_requested.connect(_on_debug_reset_requested)
@@ -359,33 +352,41 @@ func _refresh_ui() -> void:
 		var panel: PanelContainer = board_view.panel_at(i)
 		var label: Label = board_view.label_at(i)
 		var style := StyleBoxFlat.new()
-		style.bg_color = TILE_COLORS.get(value, Color("3c3a32"))
-		style.corner_radius_top_left = 18
-		style.corner_radius_top_right = 18
-		style.corner_radius_bottom_right = 18
-		style.corner_radius_bottom_left = 18
+		style.bg_color = _tile_color_for(value)
+		style.corner_radius_top_left = current_theme.tile_corner_radius
+		style.corner_radius_top_right = current_theme.tile_corner_radius
+		style.corner_radius_bottom_right = current_theme.tile_corner_radius
+		style.corner_radius_bottom_left = current_theme.tile_corner_radius
+		if _is_promare_theme():
+			style.shadow_size = 10 if value < HIGH_LEVEL_GLOW_THRESHOLD else (18 if value < FIRE_LEVEL_THRESHOLD else 24)
+			style.shadow_color = Color(
+				style.bg_color.r,
+				style.bg_color.g,
+				style.bg_color.b,
+				0.18 if value == 0 else (0.34 if value < HIGH_LEVEL_GLOW_THRESHOLD else 0.52)
+			)
 		if value >= FIRE_LEVEL_THRESHOLD:
 			style.border_width_left = 4
 			style.border_width_top = 4
 			style.border_width_right = 4
 			style.border_width_bottom = 4
-			style.border_color = Color(1.0, 0.84, 0.25, 0.98)
+			style.border_color = current_theme.tile_border_color_fire
 		elif value >= 256:
 			style.border_width_left = 3
 			style.border_width_top = 3
 			style.border_width_right = 3
 			style.border_width_bottom = 3
-			style.border_color = Color(1.0, 0.90, 0.48, 0.90)
+			style.border_color = current_theme.tile_border_color_256
 		elif value >= HIGH_LEVEL_GLOW_THRESHOLD:
 			style.border_width_left = 2
 			style.border_width_top = 2
 			style.border_width_right = 2
 			style.border_width_bottom = 2
-			style.border_color = Color(1.0, 0.96, 0.72, 0.72)
+			style.border_color = current_theme.tile_border_color_128
 
 		panel.add_theme_stylebox_override("panel", style)
 		label.text = "" if value == 0 else str(value)
-		label.add_theme_color_override("font_color", Color("776e65") if DARK_TEXT_VALUES.has(value) else Color("f9f6f2"))
+		label.add_theme_color_override("font_color", _tile_text_color_for(value))
 		label.add_theme_font_size_override("font_size", _font_size_for(value))
 		panel.modulate = Color.WHITE
 		panel.scale = Vector2.ONE
@@ -395,12 +396,12 @@ func _refresh_ui() -> void:
 
 func _apply_theme() -> void:
 	var title := $SafeArea/VBox/Header/TitleColumn/Title as Label
-	title.add_theme_font_size_override("font_size", 60)
-	title.add_theme_color_override("font_color", Color("776e65"))
+	title.add_theme_font_size_override("font_size", 68 if _is_promare_theme() else 60)
+	title.add_theme_color_override("font_color", current_theme.title_color)
 
 	var subtitle := $SafeArea/VBox/Header/TitleColumn/Subtitle as Label
-	subtitle.add_theme_font_size_override("font_size", 22)
-	subtitle.add_theme_color_override("font_color", Color("776e65"))
+	subtitle.add_theme_font_size_override("font_size", 20 if _is_promare_theme() else 22)
+	subtitle.add_theme_color_override("font_color", current_theme.subtitle_color)
 
 	var score_card := $SafeArea/VBox/Header/ScoreCard as PanelContainer
 	var best_card := $SafeArea/VBox/Header/BestCard as PanelContainer
@@ -410,50 +411,97 @@ func _apply_theme() -> void:
 	var board_frame := $SafeArea/VBox/BoardFrame as PanelContainer
 	board_frame.add_theme_stylebox_override("panel", _board_style())
 
+	var vbox := $SafeArea/VBox as VBoxContainer
+	var header := $SafeArea/VBox/Header as HBoxContainer
+	var controls := $SafeArea/VBox/Controls as VBoxContainer
+	var buttons_row := $SafeArea/VBox/Controls/ButtonsRow as HBoxContainer
+	vbox.add_theme_constant_override("separation", 16 if _is_promare_theme() else 18)
+	header.add_theme_constant_override("separation", 14 if _is_promare_theme() else 16)
+	controls.add_theme_constant_override("separation", 10 if _is_promare_theme() else 12)
+	buttons_row.add_theme_constant_override("separation", 10 if _is_promare_theme() else 16)
+
 	var help := $SafeArea/VBox/Help as Label
 	help.add_theme_font_size_override("font_size", 18)
-	help.add_theme_color_override("font_color", Color("776e65"))
+	help.add_theme_color_override("font_color", current_theme.help_color)
 
 	var controls_status := $SafeArea/VBox/Controls/Status as Label
 	controls_status.add_theme_font_size_override("font_size", 20)
-	controls_status.add_theme_color_override("font_color", Color("776e65"))
+	controls_status.add_theme_color_override("font_color", current_theme.status_color)
 
 	var score_title := $SafeArea/VBox/Header/ScoreCard/ScoreBox/Label as Label
 	var best_title := $SafeArea/VBox/Header/BestCard/BestBox/Label as Label
 	for label in [score_title, best_title]:
 		label.add_theme_font_size_override("font_size", 16)
-		label.add_theme_color_override("font_color", Color("eee4da"))
+		label.add_theme_color_override("font_color", current_theme.score_label_color)
 
 	score_label.add_theme_font_size_override("font_size", 30)
-	score_label.add_theme_color_override("font_color", Color.WHITE)
+	score_label.add_theme_color_override("font_color", current_theme.score_value_color)
 	best_label.add_theme_font_size_override("font_size", 30)
-	best_label.add_theme_color_override("font_color", Color.WHITE)
+	best_label.add_theme_color_override("font_color", current_theme.score_value_color)
 
 	new_game_button.add_theme_font_size_override("font_size", 22)
 	undo_button.add_theme_font_size_override("font_size", 20)
+	self_play_button.add_theme_font_size_override("font_size", 20)
+	theme_picker.add_theme_font_size_override("font_size", 18)
+	for button in [theme_picker, undo_button, new_game_button, self_play_button]:
+		_apply_button_theme(button)
+
+	background_rect.color = current_theme.background_color
+	flash_overlay.color = Color(
+		current_theme.flash_overlay_color.r,
+		current_theme.flash_overlay_color.g,
+		current_theme.flash_overlay_color.b,
+		0.0
+	)
 
 
 func _card_style() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color("bbada0")
-	style.corner_radius_top_left = 16
-	style.corner_radius_top_right = 16
-	style.corner_radius_bottom_right = 16
-	style.corner_radius_bottom_left = 16
+	style.bg_color = current_theme.score_card_color
+	style.corner_radius_top_left = 10 if _is_promare_theme() else 16
+	style.corner_radius_top_right = 10 if _is_promare_theme() else 16
+	style.corner_radius_bottom_right = 10 if _is_promare_theme() else 16
+	style.corner_radius_bottom_left = 10 if _is_promare_theme() else 16
 	style.content_margin_left = 14
 	style.content_margin_right = 14
 	style.content_margin_top = 10
 	style.content_margin_bottom = 10
+	if _is_promare_theme():
+		style.border_width_left = 2
+		style.border_width_top = 2
+		style.border_width_right = 2
+		style.border_width_bottom = 2
+		style.border_color = current_theme.tile_border_color_128
+		style.shadow_size = 14
+		style.shadow_color = Color(
+			current_theme.tile_border_color_256.r,
+			current_theme.tile_border_color_256.g,
+			current_theme.tile_border_color_256.b,
+			0.24
+		)
 	return style
 
 
 func _board_style() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color("bbada0")
-	style.corner_radius_top_left = 24
-	style.corner_radius_top_right = 24
-	style.corner_radius_bottom_right = 24
-	style.corner_radius_bottom_left = 24
+	style.bg_color = current_theme.board_frame_color
+	style.corner_radius_top_left = 14 if _is_promare_theme() else 24
+	style.corner_radius_top_right = 14 if _is_promare_theme() else 24
+	style.corner_radius_bottom_right = 14 if _is_promare_theme() else 24
+	style.corner_radius_bottom_left = 14 if _is_promare_theme() else 24
+	if _is_promare_theme():
+		style.border_width_left = 3
+		style.border_width_top = 3
+		style.border_width_right = 3
+		style.border_width_bottom = 3
+		style.border_color = current_theme.tile_border_color_128
+		style.shadow_size = 22
+		style.shadow_color = Color(
+			current_theme.tile_border_color_256.r,
+			current_theme.tile_border_color_256.g,
+			current_theme.tile_border_color_256.b,
+			0.20
+		)
 	return style
 
 
@@ -698,11 +746,13 @@ func _load_best_score() -> void:
 	var config := ConfigFile.new()
 	if config.load(SAVE_PATH) == OK:
 		best_score = int(config.get_value("stats", "best_score", 0))
+		current_theme_id = str(config.get_value("ui", "theme_id", DEFAULT_THEME_ID))
 
 
 func _save_best_score() -> void:
 	var config := ConfigFile.new()
 	config.set_value("stats", "best_score", best_score)
+	config.set_value("ui", "theme_id", current_theme_id)
 	config.save(SAVE_PATH)
 
 
@@ -733,6 +783,28 @@ func _on_undo_pressed() -> void:
 	_stop_self_play("Self-play paused after undo.")
 
 
+func _on_theme_selected(index: int) -> void:
+	var selected_id := str(theme_picker.get_item_metadata(index))
+	if selected_id == current_theme_id:
+		return
+	current_theme_id = selected_id
+	_resolve_current_theme()
+	vfx_controller.configure(
+		board_view,
+		flash_overlay,
+		Callable(self, "_font_size_for"),
+		current_theme.tile_colors,
+		current_theme.tile_text_colors,
+		HIGH_LEVEL_GLOW_THRESHOLD,
+		FIRE_LEVEL_THRESHOLD,
+		EXPLOSION_LEVEL_THRESHOLD
+	)
+	vfx_controller.apply_theme(current_theme)
+	_apply_theme()
+	_refresh_ui()
+	_save_best_score()
+
+
 func _capture_state() -> Dictionary:
 	return {
 		"board": board.duplicate(),
@@ -760,6 +832,144 @@ func _push_undo_state(snapshot: Dictionary) -> void:
 func _update_undo_button() -> void:
 	undo_button.disabled = undo_history.is_empty()
 	undo_button.text = "Undo (%d)" % undo_history.size()
+
+
+func _initialize_themes() -> void:
+	theme_configs.clear()
+	if classic_theme != null:
+		var theme = classic_theme
+		if theme != null:
+			theme_configs[theme.theme_id] = theme
+	if promare_theme != null:
+		var theme = promare_theme
+		if theme != null:
+			theme_configs[theme.theme_id] = theme
+
+
+func _resolve_current_theme() -> void:
+	current_theme = theme_configs.get(current_theme_id, null)
+	if current_theme == null:
+		current_theme = theme_configs.get(DEFAULT_THEME_ID, null)
+	if current_theme == null and classic_theme != null:
+		current_theme = classic_theme
+	if current_theme != null:
+		current_theme_id = current_theme.theme_id
+
+
+func _populate_theme_picker() -> void:
+	theme_picker.clear()
+	for theme_id in [DEFAULT_THEME_ID, "promare"]:
+		var theme = theme_configs.get(theme_id, null)
+		if theme == null:
+			continue
+		theme_picker.add_item(theme.display_name)
+		theme_picker.set_item_metadata(theme_picker.item_count - 1, theme.theme_id)
+	for index in theme_picker.item_count:
+		if str(theme_picker.get_item_metadata(index)) == current_theme_id:
+			theme_picker.select(index)
+			break
+
+
+func _tile_color_for(value: int) -> Color:
+	if current_theme == null:
+		return Color("3c3a32")
+	if current_theme.tile_colors.has(value):
+		return current_theme.tile_colors[value]
+	if value > 2048 and current_theme.tile_colors.has(2048):
+		return current_theme.tile_colors[2048]
+	return current_theme.tile_colors.get(0, Color("3c3a32"))
+
+
+func _tile_text_color_for(value: int) -> Color:
+	if current_theme == null:
+		return Color.WHITE
+	if current_theme.tile_text_colors.has(value):
+		return current_theme.tile_text_colors[value]
+	if value > 2048 and current_theme.tile_text_colors.has(2048):
+		return current_theme.tile_text_colors[2048]
+	return current_theme.tile_text_colors.get(0, Color.WHITE)
+
+
+func _apply_button_theme(button: Button) -> void:
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = current_theme.button_color
+	var corner_radius := 8 if _is_promare_theme() else 14
+	normal.corner_radius_top_left = corner_radius
+	normal.corner_radius_top_right = corner_radius
+	normal.corner_radius_bottom_left = corner_radius
+	normal.corner_radius_bottom_right = corner_radius
+	normal.content_margin_left = 16 if _is_promare_theme() else 14
+	normal.content_margin_right = 16 if _is_promare_theme() else 14
+	normal.content_margin_top = 11 if _is_promare_theme() else 10
+	normal.content_margin_bottom = 11 if _is_promare_theme() else 10
+	if _is_promare_theme():
+		normal.border_width_left = 2
+		normal.border_width_top = 2
+		normal.border_width_right = 2
+		normal.border_width_bottom = 2
+		normal.border_color = current_theme.tile_border_color_128
+		normal.shadow_size = 14
+		normal.shadow_color = Color(
+			current_theme.tile_border_color_256.r,
+			current_theme.tile_border_color_256.g,
+			current_theme.tile_border_color_256.b,
+			0.22
+		)
+
+	var hover := normal.duplicate() as StyleBoxFlat
+	hover.bg_color = current_theme.button_color.lightened(0.16 if _is_promare_theme() else 0.12)
+	if _is_promare_theme():
+		hover.border_color = current_theme.tile_border_color_fire
+		hover.shadow_size = 18
+		hover.shadow_color = Color(
+			current_theme.tile_border_color_fire.r,
+			current_theme.tile_border_color_fire.g,
+			current_theme.tile_border_color_fire.b,
+			0.28
+		)
+	var pressed := normal.duplicate() as StyleBoxFlat
+	pressed.bg_color = current_theme.button_color.darkened(0.18 if _is_promare_theme() else 0.12)
+	if _is_promare_theme():
+		pressed.border_color = current_theme.tile_border_color_256
+		pressed.shadow_size = 8
+
+	var disabled := normal.duplicate() as StyleBoxFlat
+	disabled.bg_color = current_theme.button_color.darkened(0.28)
+	disabled.shadow_size = 0
+	if _is_promare_theme():
+		disabled.border_color = Color(
+			current_theme.tile_border_color_128.r,
+			current_theme.tile_border_color_128.g,
+			current_theme.tile_border_color_128.b,
+			0.34
+		)
+
+	var focus := hover.duplicate() as StyleBoxFlat
+	if _is_promare_theme():
+		focus.border_width_left = 3
+		focus.border_width_top = 3
+		focus.border_width_right = 3
+		focus.border_width_bottom = 3
+
+	button.add_theme_stylebox_override("normal", normal)
+	button.add_theme_stylebox_override("hover", hover)
+	button.add_theme_stylebox_override("pressed", pressed)
+	button.add_theme_stylebox_override("focus", focus)
+	button.add_theme_stylebox_override("disabled", disabled)
+	button.add_theme_color_override("font_color", current_theme.button_text_color)
+	button.add_theme_color_override(
+		"font_disabled_color",
+		Color(
+			current_theme.button_text_color.r,
+			current_theme.button_text_color.g,
+			current_theme.button_text_color.b,
+			0.42 if _is_promare_theme() else 0.65
+		)
+	)
+
+
+func _is_promare_theme() -> bool:
+	return current_theme != null and str(current_theme.theme_id) == "promare"
 
 
 func _update_self_play_button() -> void:

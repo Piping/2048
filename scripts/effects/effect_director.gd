@@ -84,6 +84,7 @@ func _play_scene_cue(cue, context: Dictionary) -> void:
 	var tile_index := int(context.get("focus_tile_index", -1))
 	var enriched_context := context.duplicate(true)
 	enriched_context["tile_rect"] = vfx_controller.tile_visual_rect(tile_index)
+	enriched_context["theme"] = vfx_controller.theme_config if vfx_controller != null else null
 	var attach_parent: Node = get_tree().current_scene if cue.attach_to == "root" else vfx_controller.overlay_root()
 	attach_parent.add_child(scene_instance)
 	if scene_instance.has_method("configure"):
