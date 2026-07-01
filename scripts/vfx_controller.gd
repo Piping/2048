@@ -160,32 +160,52 @@ func advance(delta: float, board: Array[int]) -> void:
 		sprite.texture = frames[frame_index]
 
 
-func play_move_feedback(board: Array[int], move_animations: Array, spawned_index: int, merged_indices: Array, combo_count: int) -> void:
+func play_spawn_feedback(spawned_index: int, scale_boost: float = 1.0, intensity_boost: float = 1.0) -> void:
+	for child in animation_overlay.get_children():
+		child.queue_free()
+	if spawned_index >= 0:
+		var tile: PanelContainer = board_view.panel_at(spawned_index)
+		_pulse_tile(tile, _scaled_peak(Vector2(1.14, 1.14), scale_boost), 0.14 * lerpf(1.0, 0.82, clampf(intensity_boost - 1.0, 0.0, 0.6)))
+
+
+func play_merge_feedback(
+	board: Array[int],
+	move_animations: Array,
+	spawned_index: int,
+	merged_indices: Array[int],
+	combo_count: int,
+	scale_boost: float = 1.0,
+	intensity_boost: float = 1.0
+) -> void:
 	for child in animation_overlay.get_children():
 		child.queue_free()
 	_play_move_animations(move_animations)
 	if spawned_index >= 0 and spawned_index < board.size():
-		_pulse_tile(board_view.panel_at(spawned_index), Vector2(1.14, 1.14), 0.14)
+		_pulse_tile(board_view.panel_at(spawned_index), _scaled_peak(Vector2(1.14, 1.14), scale_boost), 0.14)
 	for tile_index in merged_indices:
 		if tile_index >= 0 and tile_index < board.size():
-			_pulse_tile(board_view.panel_at(tile_index), Vector2(1.22, 1.22), 0.18)
+			_pulse_tile(board_view.panel_at(tile_index), _scaled_peak(Vector2(1.22, 1.22), scale_boost), 0.18)
 			if board[tile_index] == 128:
-				_play_tile_atlas_once(tile_128_burst_frames, tile_index, 22.0, Vector2(1.28, 1.28), Vector2(0.0, 0.0), 0.92)
+				_play_tile_atlas_once(tile_128_burst_frames, tile_index, 22.0 * intensity_boost, Vector2(1.28, 1.28) * scale_boost, Vector2(0.0, 0.0), min(1.0, 0.92 + (intensity_boost - 1.0) * 0.08))
 			if board[tile_index] >= explosion_level_threshold:
-				_spawn_merge_burst(tile_index, board[tile_index])
+				_spawn_merge_burst(tile_index, board[tile_index], scale_boost, intensity_boost)
 	if not merged_indices.is_empty():
-		_play_board_impact(board, merged_indices)
+		_play_board_impact(board, merged_indices, intensity_boost)
 	if combo_count >= 2:
-		_play_combo_feedback(combo_count, board, merged_indices)
+		_play_combo_feedback(combo_count, board, merged_indices, intensity_boost)
 
 
-func play_celebration() -> void:
+func play_move_feedback(board: Array[int], move_animations: Array, spawned_index: int, merged_indices: Array, combo_count: int) -> void:
+	play_merge_feedback(board, move_animations, spawned_index, merged_indices, combo_count, 1.0, 1.0)
+
+
+func play_celebration(intensity_boost: float = 1.0) -> void:
 	flash_overlay.visible = true
 	flash_overlay.color = Color(1, 0.68, 0.2, 0.0)
 	var flash_tween: Tween = create_tween()
 	flash_tween.set_trans(Tween.TRANS_SINE)
-	flash_tween.tween_property(flash_overlay, "color", Color(1, 0.68, 0.2, 0.7), 0.12)
-	flash_tween.tween_property(flash_overlay, "color", Color(1, 0.2, 0.05, 0.0), 0.4)
+	flash_tween.tween_property(flash_overlay, "color", Color(1, 0.68, 0.2, min(0.92, 0.7 * intensity_boost)), 0.12)
+	flash_tween.tween_property(flash_overlay, "color", Color(1, 0.2, 0.05, 0.0), 0.4 + max(0.0, intensity_boost - 1.0) * 0.12)
 	flash_tween.finished.connect(func() -> void:
 		flash_overlay.visible = false
 	)
@@ -193,6 +213,9 @@ func play_celebration() -> void:
 	var viewport_size := get_viewport().get_visible_rect().size
 	celebration_particles.position = Vector2(viewport_size.x * 0.5, viewport_size.y * 0.32)
 	celebration_particles.color = Color(1.0, 0.78, 0.24, 1.0)
+	celebration_particles.amount = int(round(120 * intensity_boost))
+	celebration_particles.initial_velocity_min = 180.0 * intensity_boost
+	celebration_particles.initial_velocity_max = 420.0 * intensity_boost
 	celebration_particles.visible = true
 	celebration_particles.restart()
 	celebration_particles.emitting = true
@@ -209,17 +232,17 @@ func highest_merge_tile(board: Array[int], merged_indices: Array[int]) -> int:
 	return max(best_index, 0)
 
 
-func play_screen_merge_feedback(top_merge_value: int, focus_tile_index: int) -> void:
+func play_screen_merge_feedback(top_merge_value: int, focus_tile_index: int, intensity_boost: float = 1.0) -> void:
 	if top_merge_value < high_level_glow_threshold:
 		return
 	var center_uv := _screen_uv_for_tile(focus_tile_index)
-	_play_screen_blast(top_merge_value, center_uv)
+	_play_screen_blast(top_merge_value, center_uv, intensity_boost)
 	if top_merge_value >= 256:
-		_play_screen_fracture(top_merge_value, center_uv)
+		_play_screen_fracture(top_merge_value, center_uv, intensity_boost)
 
 
-func play_milestone_feedback(value: int) -> void:
-	_play_board_heat_sweep(value)
+func play_milestone_feedback(value: int, intensity_boost: float = 1.0) -> void:
+	_play_board_heat_sweep(value, intensity_boost)
 	if value >= 1024:
 		_play_banner_flyby(str(value), Color(1.0, 0.72, 0.16, 1.0))
 	elif value >= 512:
@@ -299,37 +322,39 @@ func _play_move_animations(move_animations: Array) -> void:
 		tween.finished.connect(_queue_free_if_valid.bind(ghost))
 
 
-func _spawn_merge_burst(tile_index: int, value: int) -> void:
+func _spawn_merge_burst(tile_index: int, value: int, scale_boost: float = 1.0, intensity_boost: float = 1.0) -> void:
 	var tile: PanelContainer = board_view.panel_at(tile_index)
 	var center := tile.global_position - animation_overlay.global_position + tile.size * 0.5
 	if value == 1024:
 		_play_tile_atlas_once(
 			tile_1024_strike_frames,
 			tile_index,
-			20.0,
-			Vector2(2.36, 2.48),
+			20.0 * intensity_boost,
+			Vector2(2.36, 2.48) * scale_boost,
 			Vector2(0.0, -tile.size.y * 0.06),
-			0.98,
+			min(1.0, 0.98 + (intensity_boost - 1.0) * 0.04),
 			false
 		)
-		_play_impact_flash(value)
+		_play_impact_flash(value, intensity_boost)
 		return
-	_play_sequence(effect_frames_for_value(value), center, tile.size * (2.0 if value < fire_level_threshold else 2.6), 30.0, true, 0.95 if value < fire_level_threshold else 1.0)
+	_play_sequence(effect_frames_for_value(value), center, tile.size * (2.0 if value < fire_level_threshold else 2.6) * scale_boost, 30.0 * intensity_boost, true, min(1.0, (0.95 if value < fire_level_threshold else 1.0)))
 	if value >= 128:
-		_play_sequence(impact_frames, center, tile.size * 1.9, 30.0, false, 1.0)
+		_play_sequence(impact_frames, center, tile.size * 1.9 * scale_boost, 30.0 * intensity_boost, false, 1.0)
 
 	if value >= 256:
-		_play_impact_flash(value)
+		_play_impact_flash(value, intensity_boost)
 
 
-func _play_board_impact(board: Array[int], merged_indices: Array[int]) -> void:
+func _play_board_impact(board: Array[int], merged_indices: Array[int], intensity_boost: float = 1.0) -> void:
 	var strongest_index := highest_merge_tile(board, merged_indices)
 	if strongest_index < 0:
 		return
 	var strongest_value := board[strongest_index]
 	if strongest_value < 128:
 		return
+	var impact_factor := clampf((intensity_boost - 1.0) * 0.018, 0.0, 0.028)
 	var peak_scale := Vector2(0.985, 0.985) if strongest_value < 512 else Vector2(0.972, 0.972)
+	peak_scale -= Vector2.ONE * impact_factor
 	var tween := create_tween()
 	tween.set_parallel(true)
 	tween.set_trans(Tween.TRANS_QUAD)
@@ -343,7 +368,7 @@ func _play_board_impact(board: Array[int], merged_indices: Array[int]) -> void:
 		tween.tween_property(tile, "scale", Vector2.ONE, 0.11)
 
 
-func _play_board_heat_sweep(value: int) -> void:
+func _play_board_heat_sweep(value: int, intensity_boost: float = 1.0) -> void:
 	var sweep := ColorRect.new()
 	sweep.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	sweep.color = Color(1.0, 0.55, 0.10, 0.0)
@@ -352,12 +377,12 @@ func _play_board_heat_sweep(value: int) -> void:
 	animation_overlay.add_child(sweep)
 	var tween := create_tween()
 	tween.set_trans(Tween.TRANS_SINE)
-	tween.tween_property(sweep, "color", Color(1.0, 0.62, 0.16, 0.16 if value < 1024 else 0.24), 0.08)
-	tween.tween_property(sweep, "color", Color(1.0, 0.18, 0.04, 0.0), 0.42)
+	tween.tween_property(sweep, "color", Color(1.0, 0.62, 0.16, min(0.36, (0.16 if value < 1024 else 0.24) * intensity_boost)), 0.08)
+	tween.tween_property(sweep, "color", Color(1.0, 0.18, 0.04, 0.0), 0.42 + max(0.0, intensity_boost - 1.0) * 0.08)
 	tween.finished.connect(_queue_free_if_valid.bind(sweep))
 
 
-func _play_combo_feedback(combo_count: int, board: Array[int], merged_indices: Array[int]) -> void:
+func _play_combo_feedback(combo_count: int, board: Array[int], merged_indices: Array[int], intensity_boost: float = 1.0) -> void:
 	var strongest_index := highest_merge_tile(board, merged_indices)
 	var anchor := Vector2(get_viewport().get_visible_rect().size.x * 0.5, 82.0)
 	if strongest_index >= 0:
@@ -377,7 +402,7 @@ func _play_combo_feedback(combo_count: int, board: Array[int], merged_indices: A
 	tween.set_parallel(true)
 	tween.set_trans(Tween.TRANS_BACK)
 	tween.set_ease(Tween.EASE_OUT)
-	tween.tween_property(label, "position:y", label.position.y - 22.0, 0.32)
+	tween.tween_property(label, "position:y", label.position.y - (22.0 * intensity_boost), 0.32)
 	tween.tween_property(label, "modulate:a", 0.0, 0.34).set_delay(0.14)
 	tween.finished.connect(_queue_free_if_valid.bind(label))
 
@@ -579,7 +604,7 @@ func _set_shader_progress(progress: float, material: Variant) -> void:
 		material.set_shader_parameter("progress", progress)
 
 
-func _play_screen_blast(value: int, center_uv: Vector2) -> void:
+func _play_screen_blast(value: int, center_uv: Vector2, intensity_boost: float = 1.0) -> void:
 	screen_fx.visible = true
 	screen_fx.color = Color.WHITE
 	var material := ShaderMaterial.new()
@@ -601,11 +626,11 @@ func _play_screen_blast(value: int, center_uv: Vector2) -> void:
 	var tween: Tween = create_tween()
 	tween.set_trans(Tween.TRANS_SINE)
 	tween.set_parallel(true)
-	tween.tween_method(_set_shader_progress.bind(material), 0.0, 1.0, 1.5)
+	tween.tween_method(_set_shader_progress.bind(material), 0.0, min(1.0, intensity_boost), 1.5)
 	tween.tween_property(
 		screen_fx_secondary,
 		"color",
-		Color(1.0, 0.96, 0.75, 0.18) if value < fire_level_threshold else Color(1.0, 0.58, 0.16, 0.24),
+		Color(1.0, 0.96, 0.75, min(0.30, 0.18 * intensity_boost)) if value < fire_level_threshold else Color(1.0, 0.58, 0.16, min(0.36, 0.24 * intensity_boost)),
 		0.12
 	)
 	tween.tween_property(
@@ -622,12 +647,12 @@ func _play_screen_blast(value: int, center_uv: Vector2) -> void:
 	)
 
 
-func _play_screen_fracture(value: int, center_uv: Vector2) -> void:
+func _play_screen_fracture(value: int, center_uv: Vector2, intensity_boost: float = 1.0) -> void:
 	screen_fx_secondary.visible = true
 	screen_fx_secondary.color = Color.WHITE
 	var material := ShaderMaterial.new()
 	material.shader = SCREEN_FRACTURE_SHADER
-	material.set_shader_parameter("intensity", 1.22 if value < fire_level_threshold else 1.75)
+	material.set_shader_parameter("intensity", (1.22 if value < fire_level_threshold else 1.75) * intensity_boost)
 	var clamped_center := center_uv.clamp(Vector2(0.08, 0.08), Vector2(0.92, 0.92))
 	material.set_shader_parameter("center_uv", clamped_center)
 	material.set_shader_parameter(
@@ -643,7 +668,7 @@ func _play_screen_fracture(value: int, center_uv: Vector2) -> void:
 	)
 
 
-func _play_impact_flash(value: int) -> void:
+func _play_impact_flash(value: int, intensity_boost: float = 1.0) -> void:
 	impact_flash.visible = true
 	impact_flash.material = null
 	impact_flash.color = Color(1.0, 0.98, 0.94, 0.0) if value < fire_level_threshold else Color(1.0, 0.82, 0.54, 0.0)
@@ -652,13 +677,17 @@ func _play_impact_flash(value: int) -> void:
 	tween.tween_property(
 		impact_flash,
 		"color",
-		Color(1.0, 0.98, 0.94, 0.24) if value < fire_level_threshold else Color(1.0, 0.82, 0.54, 0.30),
+		Color(1.0, 0.98, 0.94, min(0.36, 0.24 * intensity_boost)) if value < fire_level_threshold else Color(1.0, 0.82, 0.54, min(0.42, 0.30 * intensity_boost)),
 		0.04
 	)
 	tween.tween_property(impact_flash, "color", Color(1.0, 0.2, 0.06, 0.0), 0.18)
 	tween.finished.connect(func() -> void:
 		impact_flash.visible = false
 	)
+
+
+func _scaled_peak(base_peak: Vector2, scale_boost: float) -> Vector2:
+	return Vector2.ONE + (base_peak - Vector2.ONE) * scale_boost
 
 
 func _screen_uv_for_tile(tile_index: int) -> Vector2:

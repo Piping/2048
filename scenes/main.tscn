@@ -4,6 +4,9 @@
 [ext_resource type="Script" uid="uid://c2wdfxejjf45l" path="res://scripts/board_view.gd" id="2"]
 [ext_resource type="Script" uid="uid://c08lobu0purhn" path="res://scripts/vfx_controller.gd" id="3"]
 [ext_resource type="PackedScene" uid="uid://ct7y6w7nk0vrx" path="res://scenes/vfx_debug_panel.tscn" id="4"]
+[ext_resource type="Script" path="res://scripts/effects/effect_director.gd" id="5"]
+[ext_resource type="Script" path="res://scripts/effects/effect_audio_manager.gd" id="6"]
+[ext_resource type="Resource" path="res://assets/effects/default_effect_profiles.tres" id="7"]
 
 [node name="Main" type="Control" unique_id=1769943804]
 layout_mode = 3
@@ -162,6 +165,13 @@ autowrap_mode = 3
 [node name="Effects" type="CanvasLayer" parent="." unique_id=1982962397]
 layer = 5
 script = ExtResource("3")
+
+[node name="EffectDirector" type="Node" parent="." unique_id=1511894021]
+script = ExtResource("5")
+profile_set = ExtResource("7")
+
+[node name="AudioManager" type="Node" parent="EffectDirector" unique_id=109482417]
+script = ExtResource("6")
 
 [node name="ScreenFX" type="ColorRect" parent="Effects" unique_id=1654518947]
 visible = false

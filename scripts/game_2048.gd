@@ -142,6 +142,7 @@ const DEBUG_PRESETS := {
 @onready var safe_area: MarginContainer = $SafeArea
 @onready var flash_overlay: ColorRect = $FlashOverlay
 @onready var vfx_controller = $Effects
+@onready var effect_director = $EffectDirector
 @onready var debug_panel = $DebugPanel
 
 var board_model
@@ -182,6 +183,7 @@ func _ready() -> void:
 		FIRE_LEVEL_THRESHOLD,
 		EXPLOSION_LEVEL_THRESHOLD
 	)
+	effect_director.configure(vfx_controller)
 	_apply_theme()
 	_load_best_score()
 	undo_button.pressed.connect(_on_undo_pressed)
@@ -242,7 +244,7 @@ func new_game() -> void:
 	_update_status("Ready. Use arrow keys, WASD, or swipe.")
 	_sync_debug_feedback("Live game reset.")
 	_refresh_ui()
-	vfx_controller.play_move_feedback(board, [], last_spawned_index, [], combo_count)
+	effect_director.play_event("spawn", _build_effect_context([], [], last_spawned_index, 0))
 
 
 func _apply_display_safe_area() -> void:
@@ -295,15 +297,24 @@ func _try_move(direction: Vector2i) -> void:
 	board = board_model.get_board()
 	_update_undo_button()
 	_refresh_ui()
-	vfx_controller.play_move_feedback(board, move_animations_for_feedback, last_spawned_index, merged_indices_for_feedback, combo_count)
+	effect_director.play_event(
+		"merge_move",
+		_build_effect_context(move_animations_for_feedback, merged_indices_for_feedback, last_spawned_index, last_top_merge_value)
+	)
 
 	if _should_play_screen_merge_feedback(last_top_merge_value):
-		vfx_controller.play_screen_merge_feedback(last_top_merge_value, vfx_controller.highest_merge_tile(board, merged_indices_for_feedback))
+		effect_director.play_event(
+			"screen_merge",
+			_build_effect_context(move_animations_for_feedback, merged_indices_for_feedback, last_spawned_index, last_top_merge_value)
+		)
 
 	var current_max: int = board_model.max_value(board)
 	if current_max > highest_announced_tile and _should_play_milestone_feedback(current_max):
 		highest_announced_tile = current_max
-		vfx_controller.play_milestone_feedback(current_max)
+		effect_director.play_event(
+			"milestone",
+			_build_effect_context(move_animations_for_feedback, merged_indices_for_feedback, last_spawned_index, current_max)
+		)
 	elif current_max > highest_announced_tile:
 		highest_announced_tile = current_max
 
@@ -312,7 +323,10 @@ func _try_move(direction: Vector2i) -> void:
 
 	if result["max_tile"] >= TARGET_VALUE and not has_won:
 		has_won = true
-		vfx_controller.play_celebration()
+		effect_director.play_event(
+			"celebration",
+			_build_effect_context(move_animations_for_feedback, merged_indices_for_feedback, last_spawned_index, result["max_tile"])
+		)
 		_update_status("2048 reached. Keep going if you want a higher score.")
 	elif board_model.is_game_over(board):
 		_update_status("No moves left. Start a new game.")
@@ -494,7 +508,7 @@ func _play_debug_preset(preset_id: String) -> void:
 		"spawn_pulse":
 			_apply_debug_board(preset, "play_board")
 			last_spawned_index = 15
-			vfx_controller.play_move_feedback(board, [], last_spawned_index, [], 0)
+			effect_director.preview_profile("spawn", _build_effect_context([], [], last_spawned_index, 0, 0))
 		"merge_128":
 			_apply_debug_board(preset, "play_board")
 			_play_debug_merge(
@@ -594,13 +608,14 @@ func _play_debug_merge(
 	play_milestone: bool,
 	play_celebration_fx: bool
 ) -> void:
-	vfx_controller.play_move_feedback(board, move_animations, spawned_index, merged_indices, debug_combo_count)
+	var context := _build_effect_context(move_animations, merged_indices, spawned_index, top_merge_value, debug_combo_count)
+	effect_director.preview_profile("merge_move", context)
 	if _should_play_screen_merge_feedback(top_merge_value):
-		vfx_controller.play_screen_merge_feedback(top_merge_value, vfx_controller.highest_merge_tile(board, merged_indices))
+		effect_director.preview_profile("screen_merge", context)
 	if play_milestone and _should_play_milestone_feedback(top_merge_value):
-		vfx_controller.play_milestone_feedback(top_merge_value)
+		effect_director.preview_profile("milestone", context)
 	if play_celebration_fx:
-		vfx_controller.play_celebration()
+		effect_director.preview_profile("celebration", context)
 
 
 func _should_play_screen_merge_feedback(value: int) -> bool:
@@ -618,6 +633,25 @@ func _typed_int_array(values: Variant) -> Array[int]:
 	for value in values:
 		typed.append(int(value))
 	return typed
+
+
+func _build_effect_context(
+	move_animations: Array,
+	merged_indices: Array[int],
+	spawned_index: int,
+	tile_value: int,
+	context_combo_count: int = combo_count
+) -> Dictionary:
+	var focus_tile_index: int = vfx_controller.highest_merge_tile(board, merged_indices)
+	return {
+		"board": board.duplicate(),
+		"move_animations": move_animations.duplicate(),
+		"merged_indices": merged_indices.duplicate(),
+		"spawned_index": spawned_index,
+		"combo_count": context_combo_count,
+		"tile_value": tile_value,
+		"focus_tile_index": focus_tile_index
+	}
 
 
 func _sync_debug_feedback(message: String) -> void:

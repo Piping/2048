@@ -1,0 +1,251 @@
+[gd_resource type="Resource" script_class="EffectProfileSet" load_steps=23 format=3]
+
+[ext_resource type="Script" path="res://scripts/effects/effect_profile_set.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/effects/effect_profile.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/effects/vfx_effect_cue.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/effects/audio_effect_cue.gd" id="4"]
+
+[sub_resource type="Resource" id="1"]
+script = ExtResource("3")
+action = "spawn_pulse"
+scale_boost = 1.0
+intensity_boost = 1.0
+
+[sub_resource type="Resource" id="2"]
+script = ExtResource("4")
+volume_db = -20.0
+frequency = 1180.0
+frequency_end = 1540.0
+attack = 0.004
+sustain = 0.015
+release = 0.05
+pitch_random_range = 0.02
+
+[sub_resource type="Resource" id="3"]
+script = ExtResource("2")
+id = &"spawn_basic"
+event_name = &"spawn"
+max_tile_value = 4
+priority = 5
+debug_label = "Spawn"
+cues = [SubResource("1"), SubResource("2")]
+
+[sub_resource type="Resource" id="4"]
+script = ExtResource("3")
+action = "merge_feedback"
+scale_boost = 1.0
+intensity_boost = 1.0
+
+[sub_resource type="Resource" id="5"]
+script = ExtResource("4")
+volume_db = -16.0
+waveform = &"triangle"
+frequency = 980.0
+frequency_end = 1320.0
+attack = 0.005
+sustain = 0.06
+release = 0.11
+pitch_random_range = 0.015
+
+[sub_resource type="Resource" id="6"]
+script = ExtResource("2")
+id = &"merge_128"
+event_name = &"merge_move"
+min_tile_value = 128
+max_tile_value = 255
+priority = 10
+intensity_rank = 1
+debug_label = "merge_128"
+cues = [SubResource("4"), SubResource("5")]
+
+[sub_resource type="Resource" id="7"]
+script = ExtResource("3")
+action = "merge_feedback"
+scale_boost = 1.04
+intensity_boost = 1.08
+
+[sub_resource type="Resource" id="8"]
+script = ExtResource("4")
+volume_db = -14.0
+waveform = &"triangle"
+frequency = 820.0
+frequency_end = 1180.0
+attack = 0.005
+sustain = 0.07
+release = 0.13
+pitch_random_range = 0.015
+
+[sub_resource type="Resource" id="9"]
+script = ExtResource("2")
+id = &"merge_256"
+event_name = &"merge_move"
+min_tile_value = 256
+max_tile_value = 511
+priority = 20
+intensity_rank = 2
+debug_label = "merge_256"
+cues = [SubResource("7"), SubResource("8")]
+
+[sub_resource type="Resource" id="10"]
+script = ExtResource("3")
+action = "merge_feedback"
+scale_boost = 1.1
+intensity_boost = 1.18
+
+[sub_resource type="Resource" id="11"]
+script = ExtResource("4")
+volume_db = -11.0
+waveform = &"saw"
+frequency = 640.0
+frequency_end = 980.0
+attack = 0.005
+sustain = 0.08
+release = 0.15
+pitch_random_range = 0.015
+
+[sub_resource type="Resource" id="12"]
+script = ExtResource("2")
+id = &"merge_512"
+event_name = &"merge_move"
+min_tile_value = 512
+max_tile_value = 1023
+priority = 30
+intensity_rank = 3
+debug_label = "merge_512"
+cues = [SubResource("10"), SubResource("11")]
+
+[sub_resource type="Resource" id="13"]
+script = ExtResource("3")
+action = "merge_feedback"
+scale_boost = 1.18
+intensity_boost = 1.34
+
+[sub_resource type="Resource" id="14"]
+script = ExtResource("4")
+volume_db = -8.0
+waveform = &"saw"
+frequency = 460.0
+frequency_end = 780.0
+attack = 0.005
+sustain = 0.09
+release = 0.17
+pitch_random_range = 0.015
+
+[sub_resource type="Resource" id="15"]
+script = ExtResource("2")
+id = &"merge_1024"
+event_name = &"merge_move"
+min_tile_value = 1024
+max_tile_value = 2047
+priority = 40
+intensity_rank = 4
+debug_label = "merge_1024"
+cues = [SubResource("13"), SubResource("14")]
+
+[sub_resource type="Resource" id="16"]
+script = ExtResource("3")
+action = "merge_feedback"
+scale_boost = 1.28
+intensity_boost = 1.55
+
+[sub_resource type="Resource" id="17"]
+script = ExtResource("4")
+volume_db = -5.0
+waveform = &"saw"
+frequency = 280.0
+frequency_end = 560.0
+attack = 0.005
+sustain = 0.1
+release = 0.19
+pitch_random_range = 0.015
+
+[sub_resource type="Resource" id="18"]
+script = ExtResource("2")
+id = &"merge_2048_plus"
+event_name = &"merge_move"
+min_tile_value = 2048
+priority = 50
+intensity_rank = 5
+debug_label = "merge_2048_plus"
+cues = [SubResource("16"), SubResource("17")]
+
+[sub_resource type="Resource" id="19"]
+script = ExtResource("3")
+action = "screen_merge_feedback"
+intensity_boost = 1.25
+
+[sub_resource type="Resource" id="20"]
+script = ExtResource("4")
+delay = 0.03
+volume_db = -7.0
+waveform = &"saw"
+frequency = 180.0
+frequency_end = 90.0
+attack = 0.002
+sustain = 0.08
+release = 0.22
+
+[sub_resource type="Resource" id="21"]
+script = ExtResource("2")
+id = &"screen_merge_2048_plus"
+event_name = &"screen_merge"
+min_tile_value = 2048
+priority = 80
+intensity_rank = 6
+debug_label = "Screen Merge"
+cues = [SubResource("19"), SubResource("20")]
+
+[sub_resource type="Resource" id="22"]
+script = ExtResource("3")
+action = "milestone_feedback"
+intensity_boost = 1.3
+
+[sub_resource type="Resource" id="23"]
+script = ExtResource("4")
+volume_db = -6.0
+waveform = &"triangle"
+frequency = 520.0
+frequency_end = 860.0
+attack = 0.01
+sustain = 0.12
+release = 0.3
+
+[sub_resource type="Resource" id="24"]
+script = ExtResource("2")
+id = &"milestone_2048_plus"
+event_name = &"milestone"
+min_tile_value = 2048
+priority = 90
+intensity_rank = 6
+debug_label = "Milestone"
+cues = [SubResource("22"), SubResource("23")]
+
+[sub_resource type="Resource" id="25"]
+script = ExtResource("3")
+action = "celebration"
+intensity_boost = 1.4
+
+[sub_resource type="Resource" id="26"]
+script = ExtResource("4")
+delay = 0.04
+volume_db = -4.0
+waveform = &"triangle"
+frequency = 660.0
+frequency_end = 990.0
+attack = 0.015
+sustain = 0.18
+release = 0.35
+
+[sub_resource type="Resource" id="27"]
+script = ExtResource("2")
+id = &"celebration_2048"
+event_name = &"celebration"
+min_tile_value = 2048
+priority = 100
+intensity_rank = 7
+debug_label = "Celebration"
+cues = [SubResource("25"), SubResource("26")]
+
+[resource]
+script = ExtResource("1")
+profiles = [SubResource("3"), SubResource("6"), SubResource("9"), SubResource("12"), SubResource("15"), SubResource("18"), SubResource("21"), SubResource("24"), SubResource("27")]
